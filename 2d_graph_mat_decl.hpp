@@ -18,22 +18,22 @@
 #include <list>
 // #include <concepts>
 
+#include "matrix_base.hpp"
 #include "graph_box.hpp"
 #include "util/coord.hpp"
-
-typedef util::_coord<int32_t> coord;
 
     // @limitation (wrt vector<vector>) - Currently you can't get back the nth row, say mat[4], isn't valid, though can be implemented by simply returning, mat[4][0] which will logically be a linked list
 
 // dimen_t will be the unit of dimension
 template< typename node_dtype, typename dimen_t=int32_t> // @concepts -> make sure that std::is_signed<dimen_t> == true
-class Graph_Matrix{
+class Graph_Matrix: Matrix_Base{
     static_assert(std::is_signed_v<dimen_t> == true, "Dimension type must be a signed integral (for safety reasons, so that bugs don't appear due to unsigned subtractions)");
     static_assert(std::is_default_constructible<node_dtype>::value == true, "The data type of values in the matrix must be default constructible");
     static_assert(std::is_pointer<node_dtype>::value != true, "Currently it doesn't support using pointers to be the data held by each box, though it maybe implemented, but not now");
 
     typedef Graph_Box<node_dtype> graph_box_type;
     typedef std::make_unsigned_t<dimen_t> udimen_t;
+    typedef util::_coord<int32_t> coord_type;
     // typedef int32_t dimen_t;  //dimension unit
 
 protected:
@@ -87,8 +87,8 @@ public:
     auto getNumCols() const;
 
         // @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
-    graph_box_type* operator[](const coord&);
-    const graph_box_type* operator[](const coord&) const;
+    graph_box_type* operator[](const coord_type&);
+    const graph_box_type* operator[](const coord_type&) const;
     graph_box_type* operator[](const graph_position& pos);
     const graph_box_type* operator[](const graph_position& pos) const;
 

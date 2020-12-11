@@ -10,6 +10,8 @@ class range_iterator{   //only for graph_matrix
         dimen_t __tmp_forRange_y;
 
     public:
+        thread_local Graph_Matrix
+
         range_iterator(){
             this->__tmp_forRange_x = 
         }

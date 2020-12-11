@@ -1,6 +1,6 @@
 #pragma once
 
-#include "graph_mat_decl.hpp"
+#include "2d_graph_mat_decl.hpp"
 
 #define DEBUG_MODE false	/*turn on to get more logging*/
 
@@ -427,27 +427,66 @@ void Graph_Matrix<node_dtype, dimen_t>::resize(dimen_t _num_rows, dimen_t _num_c
 
 // ACCESSOR FUNCTIONS //
 template< typename node_dtype, typename dimen_t>
-Graph_Box<node_dtype>* Graph_Matrix<node_dtype, dimen_t>::operator[](const coord& pos){
-	// @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
-	// @todo - call overloaded operator taking graph_position
+Graph_Box<node_dtype>* Graph_Matrix<node_dtype, dimen_t>::operator[](const coord_type& pos){
+
+	return const_cast<
+		const Graph_Matrix<node_dtype, dimen_t>*
+	>(this)->operator[](pos);
 }
 
 template< typename node_dtype, typename dimen_t>
-const Graph_Box<node_dtype>* Graph_Matrix<node_dtype, dimen_t>::operator[](const coord& pos) const{
-	// @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
-	// @todo - call overloaded operator taking graph_position
-}
+const Graph_Box<node_dtype>* Graph_Matrix<node_dtype, dimen_t>::operator[](const coord_type& pos) const{
 
-template< typename node_dtype, typename dimen_t>
-Graph_Box<node_dtype>* Graph_Matrix<node_dtype, dimen_t>::operator[](const graph_position& pos){
-	// @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
+	// we start from origin, ie. {0,0,0}
+	graph_position g_path;
+	if (pos.mX < 0) {
+		g_path.push_back({ Direction::PASHCHIM, -pos.mX });
+	}
+	else {
+		g_path.push_back({ Direction::PURVA, pos.mX });
+	}
 
+	if (pos.mY < 0) {
+		g_path.push_back({ Direction::DAKSHIN, -pos.mY });
+	}
+	else {
+		g_path.push_back({ Direction::UTTAR, pos.mY });
+	}
+
+	if (pos.mZ < 0) {
+		g_path.push_back({ Direction::ADHARASTHA, -pos.mZ });
+	}
+	else {
+		g_path.push_back({ Direction::URDHWA, pos.mZ });
+	}
+
+	return this->operator[]( std::move(g_path) );
 }
 
 template< typename node_dtype, typename dimen_t>
 const Graph_Box<node_dtype>* Graph_Matrix<node_dtype, dimen_t>::operator[](const graph_position& pos) const{
 	// @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
 
+	const Graph_Box<node_dtype>* tmp{ &origin };
+	for (auto& i : pos)
+	{
+		for (auto j = 0; j < i.second && tmp; j++)
+		{
+			tmp = tmp->get_adj_box(i.first);
+		}
+	}
+
+	return tmp;
+}
+
+template< typename node_dtype, typename dimen_t>
+Graph_Box<node_dtype>* Graph_Matrix<node_dtype, dimen_t>::operator[](const graph_position& pos) {
+
+	/*Suggested in Effective C++, instead of writing the same code in both the const and non-const duplicate member functions*/
+	return const_cast<Graph_Box<node_dtype>*> (
+		const_cast<const Graph_Matrix<node_dtype, dimen_t>*>(this)
+			->operator[](pos)
+	);
 }
 // ACCESSOR FUNCTIONS //
 
@@ -464,7 +503,7 @@ Graph_Matrix<node_dtype, dimen_t>::Graph_Matrix() : Graph_Matrix(1, 1) {}
 */
 
 template< typename node_dtype, typename dimen_t>
-Graph_Matrix<node_dtype, dimen_t>::Graph_Matrix(dimen_t _initial_num_rows, dimen_t _initial_num_cols) : _total_x_abs(0), _total_y_abs(0), _x_min(0), _x_max(0), _y_min(0), _y_max(0){
+Graph_Matrix<node_dtype, dimen_t>::Graph_Matrix(dimen_t _initial_num_rows, dimen_t _initial_num_cols) : Matrix_Base(2), _total_x_abs(0), _total_y_abs(0), _x_min(0), _x_max(0), _y_min(0), _y_max(0){
 	if( _initial_num_rows < 0 || _initial_num_cols < 0 ){
 		throw std::length_error("Cannot have a graph with negative dimensions");
 	}

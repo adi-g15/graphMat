@@ -4,15 +4,20 @@
 #include <vector>
 #include <utility>
 
+#include "box_base.hpp"
 #include "direction.hpp"
 
-// equivalent to {x,y} in a matrix, this typedef defines the position of a box/point, in an intuitive way (to me atleast :D), and feels more closer to the implementation than to give indices, since here we have directions mostly
+ // equivalent to {x,y} in a matrix, this typedef defines the position of a box/point, in an intuitive way (to me atleast :D), and feels more closer to the implementation than to give indices, since here we have directions mostly
 typedef std::vector<std::pair< Direction, uint16_t >> graph_position;
 
 template< typename node_dtype >
 struct Graph_Box    // @node - it should be non-copyable
+    : Box_Base
 {
     typedef int32_t dimen_t;
+
+    // @note @future -> Have this coordinate in DEBUG builds, as well as the constructor taking the dimensions in debug builds
+    util::_coord<dimen_t> coordinate;
 
     public:
         Graph_Box* get_box(){ return this; }
@@ -36,10 +41,8 @@ struct Graph_Box    // @node - it should be non-copyable
                 return (!this->DOWN) ? nullptr : this->DOWN->LEFT;
             case Direction::VAYAVYA:
                 return (!this->UP) ? nullptr : this->UP->LEFT;
-            case Direction::URDHWA:
-                return this->FRONT_FACING;
-            case Direction::ADHARASTHA:
-                return this->BACK_FACING;
+            default:
+                return nullptr; // when direction is skywards or downwards
             }
         }
 
@@ -50,8 +53,6 @@ struct Graph_Box    // @node - it should be non-copyable
             this->LEFT = nullptr;
             this->UP = nullptr;
             this->DOWN = nullptr;
-            this->FRONT_FACING = nullptr;
-            this->BACK_FACING = nullptr;
         }
 
         Graph_Box(const Graph_Box<node_dtype>&) = delete;
@@ -71,19 +72,13 @@ struct Graph_Box    // @node - it should be non-copyable
 
         node_dtype data;    /*This has been given as an extension, so that you can add more variables to the graph_box
                             though, note that, you will be able to access using this->data->your_var_name */
-//        coord_type coords;  // @NOTE - not actually needed, though this maybe used in my implementation of snake
-        // @todo - I am removing the functionality of having a coord in each graph node, in an attempt to make it as small as sufficient
 
         Graph_Box* RIGHT;
         Graph_Box* LEFT;
         Graph_Box* UP;
         Graph_Box* DOWN;
-        Graph_Box* FRONT_FACING;
-        Graph_Box* BACK_FACING;
 
         // LEARNT - friending a templated class (down below is the `syntax` found, to friend `all` templated versions of Graph_Matrix)
         template<typename, typename> friend class Graph_Matrix;    //will make all Graph_Matrix friend to this
-        friend class Graph_Matrix<int, int32_t>;    //will make all Graph_Matrix friend to this
-        friend class WorldPlot; // This line maybe removed later, it is worldLine Simulator specific
-
+        //friend class Graph_Matrix<int, int32_t>;    //will make all Graph_Matrix friend to this
 };
