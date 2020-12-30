@@ -57,6 +57,39 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const coord_type& xyz)
 
 template<typename node_dtype, typename dimen_t>
 template<typename _Func>
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* source, Direction dir, _Func func)
+{
+	Graph_Box_3D<node_dtype>* tmp{ source };
+
+	while (tmp)
+	{
+		func(tmp->data);	// depends on func whether it takes by reference or not
+		tmp = tmp->get_adj_box(dir);
+	}
+}
+
+template<typename node_dtype, typename dimen_t>
+template<typename _Func>
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin, graph_box_type* end, Direction dir, _Func func)
+{
+	Graph_Box_3D<node_dtype>* tmp{ begin };
+
+	while (tmp != end)
+	{
+#ifndef GRAPH_MAT_NO_COORD
+		// simple preventive measure to throw when begin and end not connected
+		if (tmp->coordinate.mX < min_x || tmp->coordinate.mX > max_x || tmp->coordinate.mY < min_y || tmp->coordinate.mY > max_y || tmp->coordinate.mZ < min_z || tmp->coordinate.mZ > max_z) {
+			throw std::logic_error("Begin and End passed to Graph_Matrix_3D::for_each() not connected !!");
+		}
+#endif
+		func(tmp->data);	// depends on func whether it takes by reference or not
+		tmp = tmp->get_adj_box(dir);
+	}
+
+}
+
+template<typename node_dtype, typename dimen_t>
+template<typename _Func>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::init(_Func func)
 {
 	static_assert(std::is_invocable_r<node_dtype, _Func, dimen_t, dimen_t, dimen_t>::value, 
@@ -1024,7 +1057,12 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 	{
 		while (temp_loc)
 		{
+#ifndef GRAPH_MAT_NO_COORD
 			os << '(' << temp_loc->coordinate << ')' << ' ';
+#else
+			os << '(' << temp_loc->data << ')' << ' ';
+#endif // !GRAPH_MAT_NO_COORD
+
 
 			temp_loc = temp_loc->RIGHT;
 		}
@@ -1033,4 +1071,74 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 		tmp_y = tmp_y->DOWN;
 		temp_loc = tmp_y;
 	}
+}
+
+template<typename node_dtype, typename dimen_t>
+inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const coord_type& pos)
+{
+
+	return const_cast<
+		const Graph_Matrix_3D<node_dtype, dimen_t>*
+	>(this)->operator[](pos);
+}
+
+template<typename node_dtype, typename dimen_t>
+inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const coord_type& pos) const
+{
+
+	// we start from origin, ie. {0,0,0}
+	graph_position g_path;
+	if (pos.mX < 0) {
+		g_path.push_back({ Direction::PASHCHIM, -pos.mX });
+	}
+	else {
+		g_path.push_back({ Direction::PURVA, pos.mX });
+	}
+
+	if (pos.mY < 0) {
+		g_path.push_back({ Direction::DAKSHIN, -pos.mY });
+	}
+	else {
+		g_path.push_back({ Direction::UTTAR, pos.mY });
+	}
+
+	if (pos.mZ < 0) {
+		g_path.push_back({ Direction::ADHARASTHA, -pos.mZ });
+	}
+	else {
+		g_path.push_back({ Direction::URDHWA, pos.mZ });
+	}
+
+	return this->operator[](std::move(g_path));
+}
+
+template<typename node_dtype, typename dimen_t>
+inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const graph_position& pos)
+{
+	// @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
+
+	Graph_Box_3D<node_dtype>* tmp{ &origin };
+	for (auto& i : pos)
+	{
+		for (auto j = 0; j < i.second && tmp; j++)
+		{
+			tmp = tmp->get_adj_box(i.first);
+		}
+	}
+
+	return tmp;
+}
+
+template<typename node_dtype, typename dimen_t>
+inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const graph_position& pos) const
+{
+
+	/*Suggested in Effective C++, instead of writing the same code in both the const and non-const duplicate member functions*/
+	//return const_cast<const Graph_Box_3D<node_dtype>*> (
+	//	const_cast<Graph_Matrix_3D<node_dtype, dimen_t>*>(this)
+	//	->operator[](pos)
+	//	);
+
+	return const_cast<Graph_Matrix_3D<node_dtype, dimen_t>*>(this)
+		->operator[](pos);
 }

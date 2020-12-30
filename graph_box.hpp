@@ -7,9 +7,6 @@
 #include "box_base.hpp"
 #include "direction.hpp"
 
- // equivalent to {x,y} in a matrix, this typedef defines the position of a box/point, in an intuitive way (to me atleast :D), and feels more closer to the implementation than to give indices, since here we have directions mostly
-typedef std::vector<std::pair< Direction, uint16_t >> graph_position;
-
 template< typename node_dtype >
 struct Graph_Box    // @node - it should be non-copyable
     : Box_Base
@@ -48,7 +45,8 @@ struct Graph_Box    // @node - it should be non-copyable
 
         Graph_Box() : Graph_Box(std::move(node_dtype{})) {}
 
-        Graph_Box(node_dtype&& data): data(data){
+        template<typename NODE_DTYPE = node_dtype>
+        Graph_Box(node_dtype&& data, typename std::enable_if_t): data(data){
             this->RIGHT = nullptr;
             this->LEFT = nullptr;
             this->UP = nullptr;

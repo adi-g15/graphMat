@@ -54,6 +54,7 @@ public:
     }
 #endif // !GRAPH_MAT_NO_COORD
 
+    typename std::enable_if_t< std::is_move_constructible_v<dtype> >  //COME HERE
     Graph_Box_3D(dtype&& data) : data(data) {
         this->RIGHT = nullptr;
         this->LEFT = nullptr;
@@ -94,9 +95,7 @@ protected:
 
 };
 
-#ifndef Graph_MAT_NO_COORD
-
-
+#ifndef GRAPH_MAT_NO_COORD
 template<typename dtype>
 inline void Graph_Box_3D<dtype>::setCoord(util::_coord<dimen_t>&& new_coord)
 {

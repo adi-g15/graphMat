@@ -16,6 +16,9 @@ enum class Direction: uint8_t{ // intentionally not enum class now
 	ADHARASTHA	// (Patal) Downwards
 };
 
+// equivalent to {x,y} in a matrix, this typedef defines the position of a box/point, in an intuitive way (to me atleast :D), and feels more closer to the implementation than to give indices, since here we have directions mostly
+typedef std::vector<std::pair< Direction, uint16_t >> graph_position;
+
 namespace util {
 	inline auto getOppositeDirection(Direction d) {
 		switch (d)

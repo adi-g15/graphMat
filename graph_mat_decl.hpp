@@ -41,23 +41,23 @@ protected:
     graph_box_type origin; // [0,0]; will never change
 
         //pointers to the 3 nodes
-    graph_box_type* tl_box;  // top_left, [n_row-1][0]
-    graph_box_type* bl_box;  // bottom_left, [n_row-1][0]
-    graph_box_type* tr_box;  // bottom_right, [0][n_col-1]
-    graph_box_type* br_box;  // bottom_right, [n_row-1][n_col-1]
+    graph_box_type* tl_box;  // top_left
+    graph_box_type* bl_box;  // bottom_left
+    graph_box_type* tr_box;  // bottom_right
+    graph_box_type* br_box;  // bottom_right
 
     struct {
         graph_box_type* origin;
-        graph_box_type* tl_box;  // top_left, [n_row-1][0]
-        graph_box_type* bl_box;  // bottom_left, [n_row-1][0]
-        graph_box_type* br_box;  // bottom_right, [n_row-1][n_col-1]
-        graph_box_type* tr_box;  // bottom_right, [0][n_col-1]
+        graph_box_type* tl_box;  // top_left
+        graph_box_type* bl_box;  // bottom_left
+        graph_box_type* br_box;  // bottom_right
+        graph_box_type* tr_box;  // bottom_right
         dimen_t _total_y_abs;
         dimen_t _total_x_abs;
     } __capacity;   //capacity data
 
-    dimen_t _x_min, _x_max;
-    dimen_t _y_min, _y_max;
+    dimen_t x_min, x_max;
+    dimen_t y_min, y_max;
 
     // @warning - May later change it as well to `dimen_t`, since `if _total_y_abs and _N_cols are used in substraction, it may well cause `wrapping around of the unsigned``
 
@@ -68,11 +68,6 @@ protected:
     void popCol_left(); // remove the leftmost column
     void popRow_upper(); // remove the upmost row
 
-public:
-        // @deprecated+incomplete -> use util::range_iterator for now
-        // @note - util::range_iterator has ben postponed for now, will be implemented as needed
-    bool forRange(graph_box_type* iteratee); //returns false when iterated all of that of that row
-
     void pushCol(); // add a column at end
     void pushRow(); // add a row at end
     void injectCol(); // add a column at begin
@@ -81,10 +76,25 @@ public:
     void popCol(); // removes a column, preferably rightmost, if not calls popCol_left()
     void popRow(); // removes a row, preferably downmost, if not calls popRow_upper()
 
+public:
+        // @deprecated+incomplete -> use util::range_iterator for now
+        // @note - util::range_iterator has ben postponed for now, will be implemented as needed
+    //bool forRange(graph_box_type* iteratee); //returns false when iterated all of that of that row
+
     virtual std::pair< udimen_t, udimen_t > getDimensions() const;  // returns in form of 
 
     auto getNumRows() const;
     auto getNumCols() const;
+
+    template < typename _Func >
+    void for_each(graph_box_type* source, Direction, _Func);	// func will receive only one param, ie. the node_dtype data
+
+    template<typename _Func>
+    void for_each(graph_box_type* begin, graph_box_type* end, Direction dir, _Func func);
+
+    //template < typename _Cond, typename _Func >	// though this is an idea, but doesn't seem of much help
+    //void for_each(_Cond condition_function_takes_data_returns_direction_to_move, _Func);	// func will receive only one param, ie. the node_dtype data
+
 
         // @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
     graph_box_type* operator[](const coord_type&);
@@ -92,29 +102,16 @@ public:
     graph_box_type* operator[](const graph_position& pos);
     const graph_box_type* operator[](const graph_position& pos) const;
 
-//    // data_cleaner() is meant to be called only once
-//    const void data_cleaner();    // clears the `node_dtype *data;` inside nodes, which haven't been used for 
-
     // @future - These two to be implemented later and should utilize this->__capacity
     // void reserve(int _x_dimen, int _y_dimen);
     // void shrink_to_fit();
 
     // virtual void resize(dimen_t x_dimen, dimen_t y_dimen, Direction a, ...);   // @future - resize with variadic arguments, that takes directions after the new dimensions
-    virtual void resize(dimen_t _num_rows, dimen_t _num_cols);
+    void resize(dimen_t _num_rows, dimen_t _num_cols);
 
     void displayMat(std::ostream& output_stream = std::cout) const;
 
-    // friend std::ostream& operator<<(std::ostream& os, const Graph_Matrix<node_dtype,dimen_t>&) const{
-    //     this->displayMat(os);
-    // }
-
     Graph_Matrix();
     Graph_Matrix(dimen_t _num_rows, dimen_t _num_cols);
-    // Graph_Matrix(dimen_t _x_dimen, dimen_t _y_dimen, std::function);   //takes a function, that takes in two values (the x and y coord of that point), and give out a value to be alloted to the new box created there
     ~Graph_Matrix();
 };
-
-//struct empty_struct {};
- /* specialiazation for Graph_Matrix<> */
-//template<> Graph_Matrix < empty_struct > {
-//}

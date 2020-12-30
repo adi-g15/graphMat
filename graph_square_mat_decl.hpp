@@ -6,7 +6,7 @@
 template< typename node_dtype, typename dimen_t = int32_t >
 class Square_Matrix: public Graph_Matrix<node_dtype, dimen_t>{
 	public:
-		typedef coord coord_type;
+		typedef Graph_Matrix<node_dtype, dimen_t>::coord_type coord_type;
 		typedef Graph_Box<node_dtype> graph_node;
 		dimen_t getOrder() const{  //order of the matrix
 			return this->_total_y_abs;

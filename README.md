@@ -24,3 +24,9 @@ You can likely just use a std::list<std::list>, though i preferred more specific
 
 It will likely be used as the `world plot`, since think, this world will be expanding (continuosly or on need basis, so I didn't wanted `vector<vector>`, that had been quite an overhead for expansion like 40\*40 to 100\*100)
 Also, in case of `vector<vector>`, you will likely have it grow in ONLY TWO DIRECTIONS, and I WANTED IT TO GROW EQUALLY IN ALL FOUR DIRECTIONS, now this would, almost always mean, that even for a simple expansion, the `vector<vector>` has to completely allocate to a whole new place
+
+# Future
+
+Todo Tasks are ->
+
+* Implementing the range iterator, so that the graph be used with the range for loop
