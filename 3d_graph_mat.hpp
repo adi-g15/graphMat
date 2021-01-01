@@ -89,12 +89,8 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin
 }
 
 template<typename node_dtype, typename dimen_t>
-template<typename _Func>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::init(_Func func)
-{
-	static_assert(std::is_invocable_r<node_dtype, _Func, dimen_t, dimen_t, dimen_t>::value, 
-		"Please ensure these conditions for function passed to Graph_Matrix_3D::init() -> \nMUST be invocable \nTakes 3 inputs of type convertible to dimen_t (integral type)\nReturns a result of type node_dtype (the type of data used to instantiate the matrix) :D ");
-
+template<typename _Func, std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>, int> = 0 >
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::init(_Func func) {
 	graph_box_type*
 		x_temp{ this->top_left_front },
 		* y_temp{ this->top_left_front },
@@ -126,7 +122,34 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::init(_Func func)
 		z_temp = z_temp->BACK_FACING;
 		y_temp = z_temp;
 	}
+}
 
+template<typename node_dtype, typename dimen_t>
+template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>, int> = 0 >
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::init(_Func func) {
+	graph_box_type*
+		x_temp{ this->top_left_front },
+		* y_temp{ this->top_left_front },
+		* z_temp{ this->top_left_front };
+
+	while (z_temp)
+	{
+		while (y_temp)
+		{
+			while (x_temp)
+			{
+				func(x_temp->data);	// call the lambda with reference to the box
+
+				x_temp = x_temp->RIGHT;
+			}
+
+			y_temp = y_temp->DOWN;
+			x_temp = y_temp;
+		}
+
+		z_temp = z_temp->BACK_FACING;
+		y_temp = z_temp;
+	}
 }
 
 template<typename node_dtype, typename dimen_t>

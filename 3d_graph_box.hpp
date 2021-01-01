@@ -41,7 +41,14 @@ public:
         }
     }
 
-    Graph_Box_3D() : Graph_Box_3D(std::move(dtype{})) {}
+    Graph_Box_3D() {
+        this->RIGHT = nullptr;
+        this->LEFT = nullptr;
+        this->UP = nullptr;
+        this->DOWN = nullptr;
+        this->FRONT_FACING = nullptr;
+        this->BACK_FACING = nullptr;
+    }
 
 #ifndef GRAPH_MAT_NO_COORD
     Graph_Box_3D(dimen_t x, dimen_t y, dimen_t z) : coordinate(x,y,z) {
@@ -54,7 +61,7 @@ public:
     }
 #endif // !GRAPH_MAT_NO_COORD
 
-    typename std::enable_if_t< std::is_move_constructible_v<dtype> >  //COME HERE
+    template<typename DTYPE = dtype, typename = std::enable_if_t<std::is_move_constructible_v<T>> >
     Graph_Box_3D(dtype&& data) : data(data) {
         this->RIGHT = nullptr;
         this->LEFT = nullptr;

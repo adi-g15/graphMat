@@ -22,7 +22,12 @@ namespace util
             this->mZ += to_add[2];
         }
 
-        inline bool operator==(const _coord<dimen_t>& second) const = default;
+        //inline bool operator==(const _coord<dimen_t>& second) const = default;  // requires C++20
+        inline bool operator==(const _coord<dimen_t>& second) const {
+            return (this->mX == second.mX) &&
+                    (this->mY == second.mY) &&
+                    (this->mZ == second.mZ);
+        }
 
         inline bool operator<(const _coord<dimen_t>& second) const {
             if (this->mX < second.mX)  return true;
