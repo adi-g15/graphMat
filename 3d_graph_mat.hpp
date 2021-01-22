@@ -304,6 +304,8 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::expand_n_unit(const uint8_t n)
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds to end of xz planes (towards end of +x axis)
 {
+	// @note - Currently there is a LOT of duplicacy due to the add_*_layer being repeated for all three directions, i plan to use template to ease this, though it will require a few more if statements inside loops, but depending on compiler to pre inline on basis of a template parameter (of a type like DIRECTION etc), won't be doing that for now though, will do
+	// @brief tmp_z goes towards -ve z axis, and tmp_y goes towards -ve y axis
 	if (num < 1)	 return;
 
 	int num_box_required = num * ( total_abs.mY * total_abs.mZ );
@@ -320,16 +322,13 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 	}
 
 	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
-	//graph_box_type* new_boxes = new graph_box_type[num_box_required];	// deletion not this function's task; destructor does that
 
-	// @brief tmp_z goes towards -ve z axis, and tmp_y goes towards -ve y axis
 	graph_box_type* tmp_y{ this->top_right_front },
-		* tmp_z{ this->top_right_front },	// horizontal(parallel to x) and vertical(parallel to y)
+		* tmp_z{ this->top_right_front },
 		* tmp_z_curr_prev{ nullptr },	// just before the current new box
 		* tmp_y_curr_prev{ nullptr };	// just above the current new box
 
 	int index = 0;	// index in the memory above (num_box_required)
-	//	@ assert that total number of times these loops run doesn't exceed `num_box_required`
 
 	graph_box_type* curr_new;
 
@@ -374,6 +373,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 						break;
 					}
 				}
+
 #ifndef GRAPH_MAT_NO_COORD
 				curr_new->set_coord(max_x + 1, y, z);
 #endif // !GRAPH_MAT_NO_COORD
@@ -395,9 +395,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 					tmp_z_curr_prev = tmp_z_curr_prev->DOWN;
 				}
 
-#ifndef GRAPH_MAT_NO_COORD
 				--y;
-#endif // !GRAPH_MAT_NO_COORD
 			} while (tmp_y);
 
 			tmp_y_curr_prev = nullptr;
@@ -406,10 +404,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 			tmp_z = tmp_z->BACK_FACING;
 			tmp_y = tmp_z;
 
-#ifndef GRAPH_MAT_NO_COORD
 			--z;
-#endif // !GRAPH_MAT_NO_COORD
-
 		}
 
 		this->top_right_back = this->top_right_back->RIGHT;
@@ -425,43 +420,46 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_x_layer(int num)
 {
+	// @brief tmp_z goes towards -ve z axis, and tmp_y goes towards -ve y axis
 	if (num < 1)	 return;
 
 	int num_box_required = num * (total_abs.mY * total_abs.mZ);
 
-	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
-	//graph_box_type* new_boxes = new graph_box_type[num_box_required];	// deletion not this function's task; destructor does that
+	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
+	Init_Func* init_function;
+	if (use_initialiser) {
+		init_function = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ?
+			&this->data_initialiser.value() :
+			&this->__expansion_state.initializer_function.value();
+	}
+	else {
+		init_function = nullptr;
+	}
 
-	// @brief tmp_z goes towards -ve z axis, and tmp_y goes towards -ve y axis
+	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
+
 	graph_box_type* tmp_y{ this->top_left_front },
-		* tmp_z{ this->top_left_front },	// horizontal(parallel to x) and vertical(parallel to y)
+		* tmp_z{ this->top_left_front },
 		* tmp_z_curr_prev{ nullptr },	// just before the current new box
 		* tmp_y_curr_prev{ nullptr };	// just above the current new box
 
 	int index = 0;	// index in the memory above (num_box_required)
-	//	@ assert that total number of times these loops run doesn't exceed `num_box_required`
 
 	graph_box_type* curr_new;
 
-#ifndef GRAPH_MAT_NO_COORD
 	dimen_t y{ max_y }, z{ max_z };
-#endif // !GRAPH_MAT_NO_COORD
+
 	for (auto i = 0; i < num; i++)
 	{
 		tmp_y = this->top_left_front;
 		tmp_z = this->top_left_front;
 		tmp_z_curr_prev = nullptr;
 		tmp_y_curr_prev = nullptr;
-
-#ifndef GRAPH_MAT_NO_COORD
 		z = max_z;
-#endif // !GRAPH_MAT_NO_COORD
 
 		while (tmp_z)
 		{
-#ifndef GRAPH_MAT_NO_COORD
 			y = max_y;
-#endif // !GRAPH_MAT_NO_COORD
 
 			do
 			{
@@ -469,10 +467,30 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_x_layer(int num)
 
 				curr_new = tmp_y->LEFT;
 
+				if ( use_initialiser )
+				{
+					switch ( init_function->index() )	// @caution - When Init_Function typedef is modified, this needs to be modified too
+					{
+					case 0:
+						curr_new->data = std::get<0>( *init_function )();
+						break;
+					case 1:
+						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						break;
+					case 2:
+						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						break;
+					case 3:
+						std::get<3>(*init_function)(*curr_new);
+						break;
+					default:
+						// @warning - This path NOT implemented, if it's ever reached
+						break;
+					}
+				}
+
 #ifndef GRAPH_MAT_NO_COORD
-				curr_new->coordinate.mX = min_x - 1;
-				curr_new->coordinate.mY = y;
-				curr_new->coordinate.mZ = z;
+				curr_new->set_coord(min_x - 1, y, z);
 #endif // !GRAPH_MAT_NO_COORD
 
 				curr_new->RIGHT = tmp_y;	// all other pointers are automatically nullptr
@@ -492,9 +510,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_x_layer(int num)
 					tmp_z_curr_prev = tmp_z_curr_prev->DOWN;
 				}
 
-#ifndef GRAPH_MAT_NO_COORD
 				--y;
-#endif // !GRAPH_MAT_NO_COORD
 			} while (tmp_y);
 
 			tmp_y_curr_prev = nullptr;
@@ -503,9 +519,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_x_layer(int num)
 			tmp_z = tmp_z->BACK_FACING;
 			tmp_y = tmp_z;
 
-#ifndef GRAPH_MAT_NO_COORD
 			--z;
-#endif // !GRAPH_MAT_NO_COORD
 		}
 
 		this->top_left_back = this->top_left_back->LEFT;
@@ -606,27 +620,34 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::pop_xminus_layer()
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 {
+	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards -ve y axis
 	if (num < 1)	 return;
 
 	int num_box_required = num * (total_abs.mX * total_abs.mZ);
 
-	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
-	//graph_box_type* new_boxes = new graph_box_type[num_box_required];	// deletion not this function's task; destructor does that
+	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
+	Init_Func* init_function;
+	if (use_initialiser) {
+		init_function = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ?
+			&this->data_initialiser.value() :
+			&this->__expansion_state.initializer_function.value();
+	}
+	else {
+		init_function = nullptr;
+	}
 
-	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards -ve y axis
+	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
+
 	graph_box_type* tmp_x{ this->top_left_front },
-		* tmp_z{ this->top_left_front },	// horizontal(parallel to x) and vertical(parallel to y)
+		* tmp_z{ this->top_left_front },
 		* tmp_z_curr_prev{ nullptr },	// just before the current new box
 		* tmp_x_curr_prev{ nullptr };	// just above the current new box
 
 	int index = 0;	// index in the memory above (num_box_required)
-	//	@ assert that total number of times these loops run doesn't exceed `num_box_required`
 
 	graph_box_type* curr_new;
 
-#ifndef GRAPH_MAT_NO_COORD
 	dimen_t x{ min_x }, z{ max_z };
-#endif // !GRAPH_MAT_NO_COORD
 
 	for (auto i = 0; i < num; i++)
 	{
@@ -634,15 +655,11 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 		tmp_z = this->top_left_front;
 		tmp_z_curr_prev = nullptr;
 		tmp_x_curr_prev = nullptr;
-#ifndef GRAPH_MAT_NO_COORD
 		z = max_z;
-#endif // !GRAPH_MAT_NO_COORD
 
 		while (tmp_z)
 		{
-#ifndef GRAPH_MAT_NO_COORD
 			x = min_x;
-#endif // !GRAPH_MAT_NO_COORD
 
 			do
 			{
@@ -650,10 +667,30 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 
 				curr_new = tmp_x->UP;
 
+				if ( use_initialiser )
+				{
+					switch ( init_function->index() )	// @caution - When Init_Function typedef is modified, this needs to be modified too
+					{
+					case 0:
+						curr_new->data = std::get<0>( *init_function )();
+						break;
+					case 1:
+						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						break;
+					case 2:
+						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						break;
+					case 3:
+						std::get<3>(*init_function)(*curr_new);
+						break;
+					default:
+						// @warning - This path NOT implemented, if it's ever reached
+						break;
+					}
+				}
+
 #ifndef GRAPH_MAT_NO_COORD
-				curr_new->coordinate.mX = x;
-				curr_new->coordinate.mY = max_y + 1;
-				curr_new->coordinate.mZ = z;
+				curr_new->set_coord(x, max_y + 1, z);
 #endif // !GRAPH_MAT_NO_COORD
 
 				curr_new->DOWN = tmp_x;	// all other pointers are automatically nullptr
@@ -673,9 +710,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 					tmp_z_curr_prev = tmp_z_curr_prev->RIGHT;
 				}
 
-#ifndef GRAPH_MAT_NO_COORD
 				++x;
-#endif // !GRAPH_MAT_NO_COORD
 			} while (tmp_x);
 
 			tmp_x_curr_prev = nullptr;	// for the first new block at min_x, there won't be a prev element
@@ -684,9 +719,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 			tmp_z = tmp_z->BACK_FACING;
 			tmp_x = tmp_z;
 
-#ifndef GRAPH_MAT_NO_COORD
 			--z;
-#endif // !GRAPH_MAT_NO_COORD
 		}
 
 		this->top_right_back = this->top_right_back->UP;
@@ -703,15 +736,25 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 {
+	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards -ve y axis
 	if (num < 1)	 return;
 	int num_box_required = num * (total_abs.mX * total_abs.mZ);
 
-	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
-	//graph_box_type* new_boxes = new graph_box_type[num_box_required];	// deletion not this function's task; destructor does that
+	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
+	Init_Func* init_function;
+	if (use_initialiser) {
+		init_function = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ?
+			&this->data_initialiser.value() :
+			&this->__expansion_state.initializer_function.value();
+	}
+	else {
+		init_function = nullptr;
+	}
 
-	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards -ve y axis
+	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
+
 	graph_box_type* tmp_x{ this->bottom_left_front },
-		* tmp_z{ this->bottom_left_front },	// horizontal(parallel to x) and vertical(parallel to y)
+		* tmp_z{ this->bottom_left_front },
 		* tmp_z_curr_prev{ nullptr },	// just before the current new box
 		* tmp_x_curr_prev{ nullptr };	// just above the current new box
 
@@ -720,35 +763,48 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 
 	graph_box_type* curr_new;
 
-#ifndef GRAPH_MAT_NO_COORD
 	dimen_t x{ min_x }, z{ max_z };
-#endif // !GRAPH_MAT_NO_COORD
-
 	for (auto i = 0; i < num; i++)
 	{
 		tmp_x = this->bottom_left_front;
 		tmp_z = this->bottom_left_front;
 		tmp_z_curr_prev = nullptr;
 		tmp_x_curr_prev = nullptr;
-#ifndef GRAPH_MAT_NO_COORD
 		z = max_z;
-#endif // !GRAPH_MAT_NO_COORD
 
 		while (tmp_z)
 		{
-#ifndef GRAPH_MAT_NO_COORD
 			x = min_x;
-#endif // !GRAPH_MAT_NO_COORD
 			do
 			{
 				tmp_x->DOWN = &(new_boxes[index++]);
 
 				curr_new = tmp_x->DOWN;
 
+				if ( use_initialiser )
+				{
+					switch ( init_function->index() )	// @caution - When Init_Function typedef is modified, this needs to be modified too
+					{
+					case 0:
+						curr_new->data = std::get<0>( *init_function )();
+						break;
+					case 1:
+						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						break;
+					case 2:
+						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						break;
+					case 3:
+						std::get<3>(*init_function)(*curr_new);
+						break;
+					default:
+						// @warning - This path NOT implemented, if it's ever reached
+						break;
+					}
+				}
+
 #ifndef GRAPH_MAT_NO_COORD
-				curr_new->coordinate.mX = x;
-				curr_new->coordinate.mY = min_y - 1;
-				curr_new->coordinate.mZ = z;
+				curr_new->set_coord(x, min_y - 1, z);
 #endif // !GRAPH_MAT_NO_COORD
 
 				curr_new->UP = tmp_x;	// all other pointers are automatically nullptr
@@ -768,10 +824,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 					tmp_z_curr_prev = tmp_z_curr_prev->RIGHT;
 				}
 
-#ifndef GRAPH_MAT_NO_COORD
 				++x;
-#endif // !GRAPH_MAT_NO_COORD
-
 			} while (tmp_x);
 
 			tmp_x_curr_prev = nullptr;
@@ -780,10 +833,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 			tmp_z = tmp_z->BACK_FACING;
 			tmp_x = tmp_z;
 
-#ifndef GRAPH_MAT_NO_COORD
 			--z;
-#endif // !GRAPH_MAT_NO_COORD
-
 		}
 
 		this->bottom_right_back = this->bottom_right_back->DOWN;
@@ -887,11 +937,21 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 
 	int num_box_required = num * (total_abs.mX * total_abs.mY);
 
+	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
+	Init_Func* init_function;
+	if (use_initialiser) {
+		init_function = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ?
+			&this->data_initialiser.value() :
+			&this->__expansion_state.initializer_function.value();
+	}
+	else {
+		init_function = nullptr;
+	}
+
 	graph_box_type* new_boxes = allocator.Alloc( num_box_required );
-	//graph_box_type* new_boxes = new graph_box_type[num_box_required];	// deletion not this function's task; destructor does that
 
 	graph_box_type* tmp_x{ this->top_left_front },
-		* tmp_y{ this->top_left_front },	// horizontal(parallel to x) and vertical(parallel to y)
+		* tmp_y{ this->top_left_front },
 		* tmp_x_curr_prev{ nullptr },	// just before the current new box
 		* tmp_y_curr_prev{ nullptr };	// just above the current new box
 
@@ -907,24 +967,42 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 		tmp_x_curr_prev = nullptr;
 		tmp_y_curr_prev = nullptr;
 
-#ifndef GRAPH_MAT_NO_COORD
 		dimen_t x{ min_x }, y{ max_y };
-#endif // !GRAPH_MAT_NO_COORD
+
 		while (tmp_y)
 		{
-#ifndef GRAPH_MAT_NO_COORD
 			x = min_x;
-#endif // !GRAPH_MAT_NO_COORD
+
 			do
 			{
 				tmp_x->FRONT_FACING = &(new_boxes[index++]);
 
 				curr_new = tmp_x->FRONT_FACING;
 
+				if ( use_initialiser )
+				{
+					switch ( init_function->index() )	// @caution - When Init_Function typedef is modified, this needs to be modified too
+					{
+					case 0:
+						curr_new->data = std::get<0>( *init_function )();
+						break;
+					case 1:
+						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						break;
+					case 2:
+						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						break;
+					case 3:
+						std::get<3>(*init_function)(*curr_new);
+						break;
+					default:
+						// @warning - This path NOT implemented, if it's ever reached
+						break;
+					}
+				}
+
 #ifndef GRAPH_MAT_NO_COORD
-				curr_new->coordinate.mX = x;
-				curr_new->coordinate.mY = y;
-				curr_new->coordinate.mZ = max_z + 1;
+				curr_new->set_coord(x, y, max_z + 1);
 #endif // !GRAPH_MAT_NO_COORD
 
 				curr_new->BACK_FACING = tmp_x;	// all other pointers are automatically nullptr
@@ -938,22 +1016,13 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 					curr_new->UP->DOWN = curr_new;
 
 				tmp_x_curr_prev = curr_new;
-
-				//if (tmp_x->UP) {	// will only fail for the first vertial line (parallel to y-axis is added the the new layer formed)
-				//	tmp_y_curr_prev = tmp_x->UP->FRONT_FACING;
-				//}
-				// @note - The above is also a good way to update tmp_y_curr_prev, and will work
+				tmp_x = tmp_x->RIGHT;
 
 				if (tmp_y_curr_prev) {	// will only fail for the first vertial line (parallel to y-axis is added the the new layer formed)
 					tmp_y_curr_prev = tmp_y_curr_prev->RIGHT;
 				}
 
-				tmp_x = tmp_x->RIGHT;
-
-#ifndef GRAPH_MAT_NO_COORD
 				++x;
-#endif // !GRAPH_MAT_NO_COORD
-
 			} while (tmp_x);
 
 			tmp_x_curr_prev = nullptr;	// there isn't anything preeceding the 1st element (in loop when it enters)
@@ -962,10 +1031,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 			tmp_y = tmp_y->DOWN;
 			tmp_x = tmp_y;
 
-#ifndef GRAPH_MAT_NO_COORD
 			--y;
-#endif // !GRAPH_MAT_NO_COORD
-
 		}
 
 		this->top_right_front = this->top_right_front->FRONT_FACING;
@@ -986,22 +1052,29 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 
 	int num_box_required = num * (total_abs.mX * total_abs.mY);
 
+	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
+	Init_Func* init_function;
+	if (use_initialiser) {
+		init_function = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ?
+			&this->data_initialiser.value() :
+			&this->__expansion_state.initializer_function.value();
+	}
+	else {
+		init_function = nullptr;
+	}
+	
 	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
-	//graph_box_type* new_boxes = new graph_box_type[num_box_required];	// deletion not this function's task; destructor does that
 
 	graph_box_type* tmp_x{ this->top_left_back },
-		* tmp_y{ this->top_left_back },	// horizontal(parallel to x) and vertical(parallel to y)
+		* tmp_y{ this->top_left_back },
 		* tmp_x_curr_prev{ nullptr },	// just before the current new box
 		* tmp_y_curr_prev{ nullptr };	// just above the current new box
 
 	int index = 0;	// index in the memory above (num_box_required)
-	//	@ assert that total number of times these loops run doesn't exceed `num_box_required`
 
 	graph_box_type* curr_new;
 
-#ifndef GRAPH_MAT_NO_COORD
 	dimen_t x{ min_x }, y{ max_y };
-#endif // !GRAPH_MAT_NO_COORD
 	
 	for (auto i = 0; i < num; i++)
 	{
@@ -1009,26 +1082,41 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 		tmp_y = this->top_left_back;
 		tmp_x_curr_prev = nullptr;
 		tmp_y_curr_prev = nullptr;
-
-#ifndef GRAPH_MAT_NO_COORD
 		y = max_y;
-#endif // !GRAPH_MAT_NO_COORD
 
 		while (tmp_y)
 		{
-#ifndef GRAPH_MAT_NO_COORD
 			x = min_x;
-#endif // !GRAPH_MAT_NO_COORD
 			do
 			{
 				tmp_x->BACK_FACING = &(new_boxes[index++]);
 
 				curr_new = tmp_x->BACK_FACING;
 
+				if ( use_initialiser )
+				{
+					switch ( init_function->index() )	// @caution - When Init_Function typedef is modified, this needs to be modified too
+					{
+					case 0:
+						curr_new->data = std::get<0>( *init_function )();
+						break;
+					case 1:
+						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						break;
+					case 2:
+						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						break;
+					case 3:
+						std::get<3>(*init_function)(*curr_new);
+						break;
+					default:
+						// @warning - This path NOT implemented, if it's ever reached
+						break;
+					}
+				}
+
 #ifndef GRAPH_MAT_NO_COORD
-				curr_new->coordinate.mX = x;
-				curr_new->coordinate.mY = y;
-				curr_new->coordinate.mZ = min_z - 1;
+				curr_new->set_coord(x, y, min_z - 1);
 #endif // !GRAPH_MAT_NO_COORD
 
 				curr_new->FRONT_FACING = tmp_x;	// all other pointers are automatically nullptr
@@ -1043,21 +1131,13 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 
 				tmp_x_curr_prev = curr_new;
 
-				//if (tmp_x->UP) {	// will only fail for the first vertial line (parallel to y-axis is added the the new layer formed)
-				//	tmp_y_curr_prev = tmp_x->UP->FRONT_FACING;
-				//}
-				// @note - The above is also a good way to update tmp_y_curr_prev, and will work
-
 				if (tmp_y_curr_prev) {	// will only fail for the first vertial line (parallel to y-axis is added the the new layer formed)
 					tmp_y_curr_prev = tmp_y_curr_prev->RIGHT;
 				}
 
 				tmp_x = tmp_x->RIGHT;
 
-#ifndef GRAPH_MAT_NO_COORD
 				++x;
-#endif // !GRAPH_MAT_NO_COORD
-
 			} while (tmp_x);
 
 			tmp_x_curr_prev = nullptr;	// there isn't anything preeceding the 1st element (in loop when it enters)
@@ -1066,10 +1146,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 			tmp_y = tmp_y->DOWN;
 			tmp_x = tmp_y;
 
-#ifndef GRAPH_MAT_NO_COORD
 			--y;
-#endif // !GRAPH_MAT_NO_COORD
-
 		}
 
 		this->top_right_back = this->top_right_back->BACK_FACING;
