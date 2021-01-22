@@ -38,7 +38,8 @@ class Graph_Matrix_3D : Matrix_Base{
 	typedef	std::variant<
 		std::function<node_dtype && ()>,
 		std::function<node_dtype && (int, int, int)>,
-		std::function<node_dtype && (Graph_Box_3D<node_dtype>&)>
+		std::function<void (node_dtype&, int, int, int)>,
+		std::function<void (Graph_Box_3D<node_dtype>&)>
 	> Init_Func;
 
 protected:
@@ -146,16 +147,22 @@ public:
 	const graph_box_type* operator[](const graph_position& pos) const;
 
 	// these are metadata for resize() function, and it's variants
-		enum RESIZE_TYPE {
+		enum class RESIZE_TYPE {
 			AUTO_EXPANSION,	// called by auto expansion
 			MANUAL	// manually called resize()
 		};
+
+		struct {
+			RESIZE_TYPE curr_resize_type{ RESIZE_TYPE::MANUAL };
+
+			bool add_or_inject_flag;	// when auto expanding, this is used to `alternatively` add or inject planes, so that it doesn't just expand in one direction
+		} tmp_resize_data;	// this will be used by ALL size INREASING member function (so better declare than pass always)
 
 		std::optional< Init_Func > data_initialiser;
 		void set_initialiser(const Init_Func& func) { data_initialiser = func; }
 		void reset_initialiser() { data_initialiser.reset(); }
 
-		void resize(const dimen_t, const dimen_t, const dimen_t, RESIZE_TYPE = MANUAL);
+		void resize(const dimen_t, const dimen_t, const dimen_t, RESIZE_TYPE = RESIZE_TYPE::MANUAL);
 		void resize(const dimen_t, const dimen_t, const dimen_t, Init_Func data_initialiser);
 
 		template<typename Func>

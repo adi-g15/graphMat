@@ -8,7 +8,7 @@ template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, const dimen_t newY, const dimen_t newZ, Init_Func data_initializer)
 {
 	this->set_initialiser(data_initialiser);
-	this->resize(newX, newY, newZ, MANUAL);
+	this->resize(newX, newY, newZ);
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -16,17 +16,17 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, con
 {
 	if ( newX == this->total_abs.mX && newY == this->total_abs.mY && newZ == this->total_abs.mZ )	return;
 
-	std::optional< Init_Func > data_initialiser;
-	const bool was_auto_expanding{ this->__expansion_state.expansion_flag.load() };
-	// if auto_expanding was on, pause while this executes
-	if (was_auto_expanding) {
-		this->pause_auto_expansion();
-		data_initialiser = this->__expansion_state.initializer_function;
+	const bool was_auto_expanding{ this->__expansion_state.expansion_flag };
+	tmp_resize_data.curr_resize_type = resize_type;
+
+	if ( resize_type == RESIZE_TYPE::MANUAL ) {
+		if( was_auto_expanding ) this->pause_auto_expansion();	// if auto_expansion is on, pause it
 	}
-	else
-	{
-		data_initialiser = this->data_initialiser;
-	}
+
+	/**
+	* @note - Above code maybe a bit confusing... the "initialiser function" is decided by the add_* or push_*
+	*		  functions themselves, BASED on `curr_resize_type`, that is why we stored it
+	*/
 
 	// the flag has been used to `alternately` pop or push layers, from the both parts of the axis
 	bool flag = false;
@@ -57,35 +57,53 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, con
 
 	auto org_t_abs{ this->total_abs.mX };	// since total_abs will be modified by the next operations, we need to store the ORIGINAL value of the total abs values
 	if (this->total_abs.mX < newX) {
-		this->add_x_layer((newX - org_t_abs) / 2);	// adding layers to the +ve x axis side
-		this->inject_x_layer((newX - org_t_abs) - (newX - org_t_abs)/2);	// adding layers to the -ve x axis side
+		if (tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL) {
+			this->add_x_layer((newX - org_t_abs) / 2);	// adding layers to the +ve x axis side
+			this->inject_x_layer((newX - org_t_abs) - (newX - org_t_abs) / 2);	// adding layers to the -ve x axis side
+		}
+		else {	// using different behaviour in Auto Expansion, so that layers/planes don't just get added only in direction (for eg. only in +ve direction, this happens when each time increment is only of 1 units)
+			tmp_resize_data.add_or_inject_flag ? 
+				this->add_x_layer(newX - org_t_abs) :
+				this->inject_x_layer(newX - org_t_abs);
+		}
 	}
 
 	org_t_abs = total_abs.mY;
 	if (this->total_abs.mY < newY) {
-		this->add_y_layer((newY - org_t_abs) / 2);	// adding a layer to the +ve y axis side
-		this->inject_y_layer((newY - org_t_abs) - (newY - org_t_abs) / 2);	// adding a layer to the -ve y axis side
+		if (tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL) {
+			this->add_y_layer((newY - org_t_abs) / 2);	// adding a layer to the +ve y axis side
+			this->inject_y_layer((newY - org_t_abs) - (newY - org_t_abs) / 2);	// adding a layer to the -ve y axis side
+		}
+		else {	// using different behaviour in Auto Expansion, so that layers/planes don't just get added only in direction (for eg. only in +ve direction, this happens when each time increment is only of 1 units)
+			tmp_resize_data.add_or_inject_flag ?
+				this->add_y_layer(newY - org_t_abs) :
+				this->inject_y_layer(newY - org_t_abs);
+		}
 	}
 
 	org_t_abs = total_abs.mZ;
 	if (this->total_abs.mZ < newZ) {
-		this->add_z_layer((newZ - org_t_abs) / 2);	// adding a layer to the +ve z axis side
-		this->inject_z_layer((newZ - org_t_abs) - (newZ - org_t_abs) / 2);	// adding a layer to the -ve z axis side
+		if (tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL) {
+			this->add_z_layer((newZ - org_t_abs) / 2);	// adding a layer to the +ve z axis side
+			this->inject_z_layer((newZ - org_t_abs) - (newZ - org_t_abs) / 2);	// adding a layer to the -ve z axis side
+		}
+		else {	// using different behaviour in Auto Expansion, so that layers/planes don't just get added only in direction (for eg. only in +ve direction, this happens when each time increment is only of 1 units)
+			tmp_resize_data.add_or_inject_flag ? 
+				this->add_z_layer(newZ - org_t_abs) :
+				this->inject_z_layer(newZ - org_t_abs);
+		}
 	}
 
-	if (was_auto_expanding) {
-
-		if (this->__expansion_state.initializer_function.has_value()) {
-			//this->resume_auto_expansion(this->__expansion_state.initializer_function.value());
+	if (resize_type == RESIZE_TYPE::MANUAL) {
+		if (was_auto_expanding) {
 			this->__expansion_state.expansion_flag.store(true);
 
 			// we `start` it again on another thread (with previous expansion metadata still in __expansion_state object)
 			std::thread(&Graph_Matrix_3D::auto_expansion, this).detach();
 		}
-		else
-		{
-			this->resume_auto_expansion();
-		}
+	}
+	else {
+		tmp_resize_data.add_or_inject_flag = ! tmp_resize_data.add_or_inject_flag;	// toggle it, so next time, planes get added in alternative fashion (equally on both sides of each axis)
 	}
 }
 
@@ -214,7 +232,9 @@ inline Graph_Matrix_3D<node_dtype, dimen_t>::Graph_Matrix_3D(const coord_type& d
 template<typename node_dtype, typename dimen_t>
 inline Graph_Matrix_3D<node_dtype, dimen_t>::~Graph_Matrix_3D()
 {
+	// actually wanted to use promise, so that we wait till the promise is set by pause_auto_expansion, but then we can't make the destructor noexcept if that matters, if i am seeing this you will consider this possibility :D
 	this->pause_auto_expansion();
+	std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	//if ( total_abs.mX > 1 )
 	//{
 	//	while (max_x > 0)
@@ -276,8 +296,8 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::expand_n_unit(const uint8_t n)
 		this->total_abs.mY + n,
 		this->total_abs.mZ + n,
 		this->__expansion_state.initializer_function.has_value() ? // when auto expanding initialiser set, we use the auto expansion function
-			AUTO_EXPANSION : 
-			MANUAL
+			RESIZE_TYPE::AUTO_EXPANSION :
+			RESIZE_TYPE::MANUAL
 	);
 }
 
@@ -287,6 +307,17 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 	if (num < 1)	 return;
 
 	int num_box_required = num * ( total_abs.mY * total_abs.mZ );
+
+	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
+	Init_Func* init_function;
+	if (use_initialiser) {
+		init_function = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ?
+			&this->data_initialiser.value() :
+			&this->__expansion_state.initializer_function.value();
+	}
+	else {
+		init_function = nullptr;
+	}
 
 	graph_box_type* new_boxes = allocator.Alloc(num_box_required);
 	//graph_box_type* new_boxes = new graph_box_type[num_box_required];	// deletion not this function's task; destructor does that
@@ -302,9 +333,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 
 	graph_box_type* curr_new;
 
-#ifndef GRAPH_MAT_NO_COORD
 	dimen_t y{max_y}, z{max_z};
-#endif // !GRAPH_MAT_NO_COORD
 
 	for (auto i = 0; i < num; i++)
 	{
@@ -312,15 +341,11 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 		tmp_z = this->top_right_front;
 		tmp_z_curr_prev = nullptr;
 		tmp_y_curr_prev = nullptr;
-#ifndef GRAPH_MAT_NO_COORD
 		z = max_z;
-#endif // !GRAPH_MAT_NO_COORD
 
 		while (tmp_z)
 		{
-#ifndef GRAPH_MAT_NO_COORD
 			y = max_y;
-#endif // !GRAPH_MAT_NO_COORD
 
 			do
 			{
@@ -328,10 +353,29 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 
 				curr_new = tmp_y->RIGHT;
 
+				if ( use_initialiser )
+				{
+					switch ( init_function->index() )	// @caution - When Init_Function typedef is modified, this needs to be modified too
+					{
+					case 0:
+						curr_new->data = std::get<0>( *init_function )();
+						break;
+					case 1:
+						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						break;
+					case 2:
+						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						break;
+					case 3:
+						std::get<3>(*init_function)(*curr_new);
+						break;
+					default:
+						// @warning - This path NOT implemented, if it's ever reached
+						break;
+					}
+				}
 #ifndef GRAPH_MAT_NO_COORD
-				curr_new->coordinate.mX = max_x + 1;
-				curr_new->coordinate.mY = y;
-				curr_new->coordinate.mZ = z;
+				curr_new->set_coord(max_x + 1, y, z);
 #endif // !GRAPH_MAT_NO_COORD
 
 				curr_new->LEFT = tmp_y;	// all other pointers are automatically nullptr
@@ -1177,7 +1221,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::auto_expansion()
 {
-	while (this->__expansion_state.expansion_flag.load())
+	while (this->__expansion_state.expansion_flag)
 	{
 		this->expand_once();
 
@@ -1207,7 +1251,9 @@ template<typename node_dtype, typename dimen_t>
 template<typename Callable>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion(Callable&& inititaliser_func) {	// callable receives the graph_box reference
 	static_assert(
-		std::is_invocable_r_v<node_dtype, Callable, graph_box_type&> || std::is_invocable_r_v<node_dtype, Callable, dimen_t, dimen_t, dimen_t>,
+		std::is_invocable_v<Callable, graph_box_type&> ||
+		std::is_invocable_r_v<node_dtype&, Callable, dimen_t, dimen_t, dimen_t> ||
+		std::is_invocable_v<Callable, node_dtype&, dimen_t, dimen_t, dimen_t>,
 		"The callable MUST have EITHER of these signatures - node_dtype(graph_box_type&)   or   node_dtype(dimen_t, dimen_t, dimen_t)   [with the inside parenthesis being the parameters taken, and outside being the return type]"
 	);
 
@@ -1217,7 +1263,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion(Callable
 	this->__expansion_state.expansion_flag.store(true);
 
 	// we `start` it again on another thread (with previous expansion metadata still in __expansion_state object)
-	std::thread(&Graph_Matrix_3D::auto_expansion, this, inititaliser_func).detach();
+	std::thread(&Graph_Matrix_3D::auto_expansion, this).detach();
 }
 
 template<typename node_dtype, typename dimen_t>

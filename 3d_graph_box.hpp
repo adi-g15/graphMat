@@ -8,7 +8,8 @@ class Graph_Box_3D : Box_Base{
 
 #ifndef GRAPH_MAT_NO_COORD
     util::_coord<dimen_t> coordinate;
-    void setCoord(util::_coord<dimen_t>&& new_coord);
+    void set_coord(dimen_t, dimen_t, dimen_t);
+    void set_coord(util::_coord<dimen_t>&& new_coord);
 #endif
 
 public:
@@ -102,10 +103,18 @@ protected:
 
 };
 
-#ifndef GRAPH_MAT_NO_COORD
+#ifndef GRAPH_MAT_NO_COORD 
 template<typename dtype>
-inline void Graph_Box_3D<dtype>::setCoord(util::_coord<dimen_t>&& new_coord)
+inline void Graph_Box_3D<dtype>::set_coord(util::_coord<dimen_t>&& new_coord)
 {
     this->coordinate = std::move(new_coord);
+}
+
+template<typename dtype>
+inline void Graph_Box_3D<dtype>::set_coord(dimen_t x, dimen_t y, dimen_t z)
+{
+    this->coordinate.mX = x;
+    this->coordinate.mY = y;
+    this->coordinate.mZ = z;
 }
 #endif // !Graph_MAT_NO_COORD
