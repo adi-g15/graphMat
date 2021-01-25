@@ -5,10 +5,10 @@
 #include <thread>
 
 template<typename node_dtype, typename dimen_t>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, const dimen_t newY, const dimen_t newZ, Init_Func data_initializer)
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, const dimen_t newY, const dimen_t newZ, const Init_Func& initialiser, RESIZE_TYPE resize_type)
 {
-	this->set_initialiser(data_initialiser);
-	this->resize(newX, newY, newZ);
+	this->set_initialiser(initialiser);
+	this->resize(newX, newY, newZ, resize_type);
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -108,6 +108,11 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, con
 }
 
 template<typename node_dtype, typename dimen_t>
+inline std::tuple<dimen_t, dimen_t, dimen_t>  Graph_Matrix_3D<node_dtype, dimen_t>::get_size() const noexcept {
+	return { this->total_abs.mX, this->total_abs.mY, this->total_abs.mZ };
+}
+
+template<typename node_dtype, typename dimen_t>
 template<typename _Func>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* source, Direction dir, _Func func)
 {
@@ -141,7 +146,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin
 }
 
 template<typename node_dtype, typename dimen_t>
-template<typename _Func, std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>, int> = 0 >
+template<typename _Func, typename std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>> >
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_all(_Func func) {
 	graph_box_type*
 		x_temp{ this->top_left_front },
@@ -205,63 +210,166 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_all(_Func func) {
 }
 
 template<typename node_dtype, typename dimen_t>
-inline Graph_Matrix_3D<node_dtype, dimen_t>::Graph_Matrix_3D() : Graph_Matrix_3D({ 1,1,1 }) {}
+Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::find(const node_dtype& value) {	// uses operator== for comparison
+	// @future - Use the top positions tree to chose from the best positions
 
-template<typename node_dtype, typename dimen_t>
-inline Graph_Matrix_3D<node_dtype, dimen_t>::Graph_Matrix_3D(const coord_type& dimensions) : 
-	Matrix_Base(3), 
-	total_abs({1,1,1}),	/*absolute_ values aren't max-min, since at beginning min=max=0, but absolute is 1*/
-	top_left_front(&origin),
-	top_left_back(&origin),
-	bottom_left_front(&origin),
-	bottom_left_back(&origin),
-	top_right_front(&origin),
-	top_right_back(&origin),
-	bottom_right_front(&origin),
-	bottom_right_back(&origin),
-	min_x(0),
-	min_y(0),
-	min_z(0),
-	max_x(0),
-	max_y(0),
-	max_z(0)
-{
-	this->resize(dimensions.mX, dimensions.mY, dimensions.mZ);
+	// @note- For small matrices, there is a speed tradeoff using threads actually
+	return this->swastic_find(&this->origin, value);
 }
 
+//template<typename node_dtype, typename dimen_t>
+//template<typename UnaryPredicate>
+//Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::find(UnaryPredicate& func) {
+//	static_assert(std::is_invocable_r_v<bool, UnaryPredicate, const node_dtype&>,
+//		"UnaryPredicate only considers functions that take in a `const node_dtype&` reference, and return a boolean value");;
+//
+//	// @future - Use the top positions tree to chose from the best positions
+//
+//	return this->swastic_find(this->origin, func);
+//}
+
 template<typename node_dtype, typename dimen_t>
-inline Graph_Matrix_3D<node_dtype, dimen_t>::~Graph_Matrix_3D()
-{
-	// actually wanted to use promise, so that we wait till the promise is set by pause_auto_expansion, but then we can't make the destructor noexcept if that matters, if i am seeing this you will consider this possibility :D
-	this->pause_auto_expansion();
-	std::this_thread::sleep_for(std::chrono::milliseconds(200));
-	//if ( total_abs.mX > 1 )
-	//{
-	//	while (max_x > 0)
-	//		this->pop_xplus_layer();
+Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::swastic_find(graph_box_type* center_node, const node_dtype& value) {	// uses operator== for comparison
+	if (center_node->data == value)	return center_node;
 
-	//	while (min_x < 0)
-	//		this->pop_xminus_layer();
-	//}
+	std::vector<std::thread> layer_threads;	// all threads that are searching different layers
 
-	//if (total_abs.mY > 1)
-	//{
-	//	while (max_y > 0)
-	//		this->pop_yplus_layer();
+	std::condition_variable cv;	// any thread will notify if it has found it
+	std::atomic_bool found = false;
+	graph_box_type* found_box{ nullptr };
 
-	//	while (min_y < 0)
-	//		this->pop_yminus_layer();
-	//}
+	auto swastic = [&](graph_box_type* layer_center) mutable {
+		std::array<std::thread, 4> t;
 
-	//if (total_abs.mZ > 1)
-	//{
-	//	while (max_z > 0)
-	//		this->pop_zplus_layer();
+		graph_box_type 
+			*up{ layer_center->UP }, 
+			*down{ layer_center->DOWN },
+			*left{ layer_center->LEFT },
+			*right{ layer_center->RIGHT };
 
-	//	while (min_z < 0)
-	//		this->pop_zminus_layer();
-	//}
+		t[0] = std::thread([&]() mutable {
+			graph_box_type* tmp;
+			while (!found && up)
+			{
+				tmp = up;
+				while (tmp && tmp->getData() != value)
+				{
+					tmp = tmp->RIGHT;
+				}
+				if (tmp != nullptr) {
+					found.store(true);
+					found_box = tmp;
+					cv.notify_one();
+					return;
+				}
+				up = up->UP;
+			}
+			});
+		t[1] = std::thread([&]() mutable {
+			graph_box_type* tmp;
+			while (!found && down)
+			{
+				tmp = down;
+				while (tmp && tmp->getData() != value)
+				{
+					tmp = tmp->LEFT;
+				}
+				if (tmp != nullptr) {
+					found.store(true);
+					found_box = tmp;
+					cv.notify_one();
+					return;
+				}
+				down = down->DOWN;
+			}
+			});
+		t[2] = (std::thread([&]() mutable {
+			graph_box_type* tmp;
+			while (!found && left)
+			{
+				tmp = left;
+				while (tmp && tmp->getData() != value)
+				{
+					tmp = tmp->UP;
+				}
+				if (tmp != nullptr) {
+					found.store(true);
+					found_box = tmp;
+					cv.notify_one();
+					return;
+				}
+				left = left->LEFT;
+			}
+			}));
+		t[3] = std::thread([&]() mutable {
+			graph_box_type* tmp;
+			while (!found && right)
+			{
+				tmp = right;
+				while (tmp && tmp->getData() != value)
+				{
+					tmp = tmp->DOWN;
+				}
+				if (tmp != nullptr) {
+					found.store(true);
+					found_box = tmp;
+					cv.notify_one();
+					return;
+				}
+				right = right->RIGHT;
+			}
+			});
+
+		for (auto& th : t)
+			if (th.joinable())	th.join();
+
+	};
+
+	// call to the above is being made here, it maybe confusing sorry :-)
+	layer_threads.reserve(this->total_abs.mZ);
+	layer_threads.push_back(std::thread(swastic, center_node));
+
+	graph_box_type* tmp1{ center_node->FRONT_FACING }, *tmp2{ center_node->BACK_FACING };
+
+	while (tmp1 != nullptr)
+	{
+		layer_threads.push_back(std::thread(swastic, tmp1));
+
+		tmp1 = tmp1->FRONT_FACING;
+	}
+
+	while (tmp2 != nullptr)
+	{
+		layer_threads.push_back(std::thread(swastic, tmp2));
+
+		tmp2 = tmp2->BACK_FACING;
+	}
+
+	std::unique_lock<std::mutex> lock(m);
+	while (!found)
+	{
+		// if no thread is joinable (ie. all have done executing) have done executing and we didn't find, then exit
+		if (std::none_of(layer_threads.begin(), layer_threads.end(), [](const auto& th) {return th.joinable();}))	break;
+
+		cv.wait_for(lock, std::chrono::milliseconds(200));
+	}
+
+	for (auto& th : layer_threads)
+	{
+		if (th.joinable())	th.join();
+	}
+	return found_box;
 }
+
+//template<typename node_dtype, typename dimen_t>
+//template<typename UnaryPredicate>
+//Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::swastic_find(graph_box_type* center_node, UnaryPredicate& func) {
+//	static_assert(std::is_invocable_r_v<bool, UnaryPredicate, const node_dtype&>,
+//		"UnaryPredicate only considers functions that take in a `const node_dtype&` reference, and return a boolean value");;
+//
+//	//if()
+//	return nullptr;
+//}
 
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::expand_once()
@@ -269,12 +377,12 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::expand_once()
 	const float decrease_rate = 0.90;	// 90% of previous expansion speed
 
 	if (this->__expansion_state.time_since_speed_updated % 10 == 0) {
-		this->__expansion_state.expansion_speed = Matrix_Base::init_expansion_speed;
+		this->__expansion_state.curr_expansion_speed = this->__expansion_state.expansion_speed;
 		this->__expansion_state.time_since_speed_updated = 0;
 	}
 
-	this->__expansion_state.increase_units += this->__expansion_state.expansion_speed * decrease_rate;
-	this->__expansion_state.expansion_speed *= decrease_rate;
+	this->__expansion_state.increase_units += this->__expansion_state.curr_expansion_speed * decrease_rate;
+	this->__expansion_state.curr_expansion_speed *= decrease_rate;
 
 	// will be optimised away by compiler,since const local
 	const int int_part{ static_cast<int>(std::trunc(this->__expansion_state.increase_units)) };
@@ -308,9 +416,9 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 	// @brief tmp_z goes towards -ve z axis, and tmp_y goes towards -ve y axis
 	if (num < 1)	 return;
 
-	int num_box_required = num * ( total_abs.mY * total_abs.mZ );
+	const int num_box_required = num * ( total_abs.mY * total_abs.mZ );
 
-	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
+	const bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
 	Init_Func* init_function;
 	if (use_initialiser) {
 		init_function = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ?
@@ -675,10 +783,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 						curr_new->data = std::get<0>( *init_function )();
 						break;
 					case 1:
-						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						curr_new->data = std::get<1>(*init_function)(x, max_y + 1, z);
 						break;
 					case 2:
-						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						std::get<2>(*init_function)(curr_new->data , x, max_y + 1, z);
 						break;
 					case 3:
 						std::get<3>(*init_function)(*curr_new);
@@ -789,10 +897,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 						curr_new->data = std::get<0>( *init_function )();
 						break;
 					case 1:
-						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						curr_new->data = std::get<1>(*init_function)(x, min_y - 1, z);
 						break;
 					case 2:
-						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						std::get<2>(*init_function)(curr_new->data , x, min_y - 1, z);
 						break;
 					case 3:
 						std::get<3>(*init_function)(*curr_new);
@@ -987,10 +1095,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 						curr_new->data = std::get<0>( *init_function )();
 						break;
 					case 1:
-						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						curr_new->data = std::get<1>(*init_function)(x, y, max_z + 1);
 						break;
 					case 2:
-						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						std::get<2>(*init_function)(curr_new->data , x, y, max_z + 1);
 						break;
 					case 3:
 						std::get<3>(*init_function)(*curr_new);
@@ -1101,10 +1209,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 						curr_new->data = std::get<0>( *init_function )();
 						break;
 					case 1:
-						curr_new->data = std::get<1>(*init_function)(max_x + 1, y, z);
+						curr_new->data = std::get<1>(*init_function)(x, y, min_z - 1);
 						break;
 					case 2:
-						std::get<2>(*init_function)(curr_new->data , max_x + 1, y, z);
+						std::get<2>(*init_function)(curr_new->data , x, y, min_z - 1);
 						break;
 					case 3:
 						std::get<3>(*init_function)(*curr_new);
@@ -1298,18 +1406,35 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::auto_expansion()
 {
+	//this->is_auto_paused = false;
 	while (this->__expansion_state.expansion_flag)
 	{
+		std::cout << "Expanding...\n";
 		this->expand_once();
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		// sleep for 1 unit time
+		std::this_thread::sleep_for(std::chrono::milliseconds(this->__expansion_state.milliseconds_in_unit_time));
 	}
+	//while (!is_auto_paused)
+	//{
+	this->auto_expansion_convar.notify_one();
+	std::cout << "Stopped" << std::endl;
+	//}
 }
 
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::pause_auto_expansion()
 {
+	// return if not expanding, or "shouldn't" be auto expanding now
+	if (!this->__expansion_state.expansion_flag)	return;
+
+	std::unique_lock<std::mutex> lock(this->m);
 	this->__expansion_state.expansion_flag.store(false);
+	while (this->__expansion_state.expansion_flag)	// to prevent infinite blocking
+	{
+		this->auto_expansion_convar.wait_for(lock, std::chrono::milliseconds(300));
+	}
+	return;
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1325,13 +1450,18 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion()
 }
 
 template<typename node_dtype, typename dimen_t>
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::set_expansion_rate(float rate)
+{
+	this->__expansion_state.expansion_speed = rate;
+	this->__expansion_state.curr_expansion_speed = rate;
+}
+
+template<typename node_dtype, typename dimen_t>
 template<typename Callable>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion(Callable&& inititaliser_func) {	// callable receives the graph_box reference
 	static_assert(
-		std::is_invocable_v<Callable, graph_box_type&> ||
-		std::is_invocable_r_v<node_dtype&, Callable, dimen_t, dimen_t, dimen_t> ||
-		std::is_invocable_v<Callable, node_dtype&, dimen_t, dimen_t, dimen_t>,
-		"The callable MUST have EITHER of these signatures - node_dtype(graph_box_type&)   or   node_dtype(dimen_t, dimen_t, dimen_t)   [with the inside parenthesis being the parameters taken, and outside being the return type]"
+		std::is_assignable_v<Init_Func, Callable>,
+		"The callable MUST have EITHER of these signatures - void(graph_box_type&) or void(node_dtype, dimen_t, dimen_t, dimen_t)   or   node_dtype(dimen_t, dimen_t, dimen_t)  [with the inside parenthesis being the parameters taken, and outside being the return type]"
 	);
 
 	if (this->__expansion_state.expansion_flag.load()) return;    // if already expanding, then return
@@ -1411,4 +1541,91 @@ inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::ope
 
 	return const_cast<Graph_Matrix_3D<node_dtype, dimen_t>*>(this)
 		->operator[](pos);
+}
+
+template<typename node_dtype, typename dimen_t>
+inline Graph_Matrix_3D<node_dtype, dimen_t>::Graph_Matrix_3D() : Graph_Matrix_3D({ 1,1,1 }) {}
+
+template<typename node_dtype, typename dimen_t>
+inline Graph_Matrix_3D<node_dtype, dimen_t>::Graph_Matrix_3D(const coord_type& dimensions) :
+	Matrix_Base(3),
+	total_abs({ 1,1,1 }),	/*absolute_ values aren't max-min, since at beginning min=max=0, but absolute is 1*/
+	top_left_front(&origin),
+	top_left_back(&origin),
+	bottom_left_front(&origin),
+	bottom_left_back(&origin),
+	top_right_front(&origin),
+	top_right_back(&origin),
+	bottom_right_front(&origin),
+	bottom_right_back(&origin),
+	min_x(0),
+	min_y(0),
+	min_z(0),
+	max_x(0),
+	max_y(0),
+	max_z(0)
+{
+	this->resize(dimensions.mX, dimensions.mY, dimensions.mZ);
+}
+
+template<typename node_dtype, typename dimen_t>
+template<typename Func>
+inline Graph_Matrix_3D<node_dtype, dimen_t>::Graph_Matrix_3D(const coord_type& dimensions, Func&& initialiser) :	// with initialiser
+	Matrix_Base(3),
+	total_abs({ 1,1,1 }),	/*absolute_ values aren't max-min, since at beginning min=max=0, but absolute is 1*/
+	top_left_front(&origin),
+	top_left_back(&origin),
+	bottom_left_front(&origin),
+	bottom_left_back(&origin),
+	top_right_front(&origin),
+	top_right_back(&origin),
+	bottom_right_front(&origin),
+	bottom_right_back(&origin),
+	min_x(0),
+	min_y(0),
+	min_z(0),
+	max_x(0),
+	max_y(0),
+	max_z(0)
+{
+	static_assert(
+		std::is_assignable_v<Init_Func, Func>,
+		"The callable MUST have EITHER of these signatures - void(graph_box_type&) or void(node_dtype, dimen_t, dimen_t, dimen_t)   or   node_dtype(dimen_t, dimen_t, dimen_t)  [with the inside parenthesis being the parameters taken, and outside being the return type]"
+	);
+
+	this->resize(dimensions.mX, dimensions.mY, dimensions.mZ, initialiser, RESIZE_TYPE::MANUAL);
+}
+
+template<typename node_dtype, typename dimen_t>
+inline Graph_Matrix_3D<node_dtype, dimen_t>::~Graph_Matrix_3D()
+{
+	// actually wanted to use promise, so that we wait till the promise is set by pause_auto_expansion, but then we can't make the destructor noexcept if that matters, if i am seeing this you will consider this possibility :D
+	this->pause_auto_expansion();
+
+	//if ( total_abs.mX > 1 )
+	//{
+	//	while (max_x > 0)
+	//		this->pop_xplus_layer();
+
+	//	while (min_x < 0)
+	//		this->pop_xminus_layer();
+	//}
+
+	//if (total_abs.mY > 1)
+	//{
+	//	while (max_y > 0)
+	//		this->pop_yplus_layer();
+
+	//	while (min_y < 0)
+	//		this->pop_yminus_layer();
+	//}
+
+	//if (total_abs.mZ > 1)
+	//{
+	//	while (max_z > 0)
+	//		this->pop_zplus_layer();
+
+	//	while (min_z < 0)
+	//		this->pop_zminus_layer();
+	//}
 }

@@ -14,7 +14,7 @@ protected:	// it shouldn't be instantiable
 
 	int getDimensionsOfMatrix() { return this->_dimension; }
 
-	static constexpr uint8_t init_expansion_speed{ 1 }; // @future - allow negative growths too
+	static constexpr float init_expansion_speed{ 1 }; // @future - allow negative growths too
 	virtual void auto_expansion() = 0;
 	virtual void pause_auto_expansion() = 0;
 	virtual void resume_auto_expansion() = 0;

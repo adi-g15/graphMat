@@ -6,6 +6,7 @@
 #include <functional>	// for std::function
 #include <optional>
 #include <variant>
+#include <future>	// for std::promise
 
 #include "matrix_base.hpp"
 #include "3d_graph_box.hpp"
@@ -31,7 +32,8 @@ class Graph_Matrix_3D : Matrix_Base{
 
 	static_assert(std::is_signed_v<dimen_t>, "Dimension type must be a signed integral (for safety reasons, so that bugs don't appear due to unsigned subtractions)");
 	static_assert(std::is_default_constructible_v<node_dtype>, "The data type of values in the matrix must be default constructible");
-	static_assert( ! std::is_pointer_v<node_dtype>, "Currently it doesn't support using pointers to be the data held by each box, though it maybe implemented, but not now");
+	// Now pointer support added
+	//static_assert( ! std::is_pointer_v<node_dtype>, "Currently it doesn't support using pointers to be the data held by each box, though it maybe implemented, but not now");
 
 	typedef Graph_Box_3D<node_dtype> graph_box_type;
 	typedef util::_coord<dimen_t> coord_type;
@@ -54,9 +56,19 @@ protected:
 	graph_box_type* bottom_right_front;
 	graph_box_type* bottom_right_back;
 
+	MemoryAlloc< Graph_Box_3D<node_dtype> >	allocator;
+
+	dimen_t min_x, min_y, min_z;	// ALWAYS NON-POSITIVES (since origin layer won't be removed so at max 0)
+	dimen_t max_x, max_y, max_z;	// ALWAYS NON-NEGATIVES (  "      "      "    "    "   "      "  " min 0)
+
+	coord_type total_abs;	// total span of a single dimension
+
 	struct {
 		float expansion_speed{ Matrix_Base::init_expansion_speed }; //initially it will auto_expand statics::init_expansion_speed unit at time, each side
+
+		float curr_expansion_speed{ Matrix_Base::init_expansion_speed };
 		float increase_units{0.0};	// units to increase in each direction, in call to expand_once()
+		const int milliseconds_in_unit_time{ 1000 };	// by default consider it 1 second
 		//float last_increase_units;	// @note @me - expansion speed itself behaves as this
 
 		std::atomic_bool expansion_flag{ false };
@@ -92,13 +104,6 @@ protected:
 		coord_type total_abs;
 	} __capacity;   //capacity data
 
-	MemoryAlloc< Graph_Box_3D<node_dtype> >	allocator;
-
-	dimen_t min_x, min_y, min_z;	// ALWAYS NON-POSITIVES (since origin layer won't be removed so at max 0)
-	dimen_t max_x, max_y, max_z;	// ALWAYS NON-NEGATIVES (  "      "      "    "    "   "      "  " min 0)
-
-	coord_type total_abs;	// total span of a single dimension
-
 	void add_x_layer(int num = 1);
 	void inject_x_layer(int num = 1);
 	void pop_xplus_layer();
@@ -126,6 +131,10 @@ protected:
 	//template < typename _Cond, typename _Func >	// though this is an idea, but doesn't seem of much help
 	//void for_each(_Cond condition_function_takes_data_returns_direction_to_move, _Func);	// func will receive only one param, ie. the node_dtype data
 
+	std::mutex m;
+	std::condition_variable auto_expansion_convar;	// convar to signal the pause_auto_expansion() when auto() expansion actually stops
+	std::atomic_bool is_auto_paused;	// extra bool to tell whether
+
 public:
 	/**
 	* @note - It is `time based expansion`, that is the expansion rate decreases over time, and gains normal speed back up too, then again that
@@ -140,6 +149,7 @@ public:
 	// 	OVERLOAD similar to resume_auto_expansion(), just that for each new box, the callable is executed, and returned value assigned to box::data
 	template<typename Callable>
 	void resume_auto_expansion(Callable&&);
+	void set_expansion_rate(float);
 
 	graph_box_type* operator[](const coord_type&);
 	const graph_box_type* operator[](const coord_type&) const;
@@ -163,22 +173,47 @@ public:
 		void reset_initialiser() { data_initialiser.reset(); }
 
 		void resize(const dimen_t, const dimen_t, const dimen_t, RESIZE_TYPE = RESIZE_TYPE::MANUAL);
-		void resize(const dimen_t, const dimen_t, const dimen_t, Init_Func data_initialiser);
+		void resize(const dimen_t, const dimen_t, const dimen_t, const Init_Func& data_initialiser, RESIZE_TYPE = RESIZE_TYPE::MANUAL);
 
-		template<typename Func>
-		void resize(const dimen_t, const dimen_t, const dimen_t, Func&&, RESIZE_TYPE = MANUAL);
+		std::tuple<dimen_t, dimen_t, dimen_t> get_size() const noexcept;
 
 	/*
 		A common mistake is to declare two function templates that differ only in their default template arguments. This is illegal because default template arguments are not part of function template's signature, and declaring two different function templates with the same signature is illegal.
 	*/
-	template<typename _Func, std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>, int> = 0 >
+	template<typename _Func, typename std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>>>
 	void for_all(_Func);	// _Func is a lambda that receives modifiable reference to the data box
 
 	template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>, int> = 0 >
 	void for_all(_Func);	// _Func is a lambda that receives the 3 dimensions
 
+	graph_box_type* find(const node_dtype& value);	// uses operator== for comparison
+	//template<typename UnaryPredicate>
+	//graph_box_type* find(UnaryPredicate& func);
+
+	graph_box_type* swastic_find(graph_box_type* plane_center, const node_dtype& value);	// also needs a point to start from
+	//template<typename UnaryPredicate>
+	//graph_box_type* swastic_find(graph_box_type* plane_center, UnaryPredicate& func);
+
+	//enum class FINDER {
+	//	SWASTIC,	// only swastic finder currently
+	//	BFS,
+	//	AUTO
+	//};
+	//template<FINDER finder>
+	//graph_box_type* find(const node_dtype& value);	// uses operator== for comparison
+	//template<FINDER finder, typename UnaryPredicate>
+	//graph_box_type* find(UnaryPredicate& func);
+
+	//template<std::enable_if_t< !std::is_pointer_v<node_dtype>, int> = 0 >
 	Graph_Matrix_3D();
+	//template<std::enable_if_t< std::is_pointer_v<node_dtype>, int> = 0 >
+	//Graph_Matrix_3D();
+
+	//template<std::enable_if_t< !std::is_pointer_v<node_dtype>, int> = 0 >
 	Graph_Matrix_3D(const coord_type& dimensions);
+
+	template<typename Func>
+	Graph_Matrix_3D(const coord_type& dimensions, Func&&);	// with initialiser
 
 	~Graph_Matrix_3D();
 };

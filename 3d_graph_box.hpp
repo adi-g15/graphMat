@@ -42,6 +42,17 @@ public:
         }
     }
 
+    // enable_if_t<std::is_pointer_t<std::remove_reference_t<node_dtype>>>
+    template<typename DType = dtype, typename = std::enable_if_t<std::is_pointer_v<std::remove_reference_t<dtype>>>>
+    Graph_Box_3D(): data(nullptr) {
+        this->RIGHT = nullptr;
+        this->LEFT = nullptr;
+        this->UP = nullptr;
+        this->DOWN = nullptr;
+        this->FRONT_FACING = nullptr;
+        this->BACK_FACING = nullptr;
+    }
+
     Graph_Box_3D() {
         this->RIGHT = nullptr;
         this->LEFT = nullptr;
@@ -82,19 +93,19 @@ public:
 
     const dtype& getData() const { return this->data; }
 
+    Graph_Box_3D* RIGHT{ nullptr };
+    Graph_Box_3D* LEFT{ nullptr };
+    Graph_Box_3D* UP{ nullptr };
+    Graph_Box_3D* DOWN{ nullptr };
+    Graph_Box_3D* FRONT_FACING{ nullptr };
+    Graph_Box_3D* BACK_FACING{ nullptr };
+
 protected:
 
     dtype data;    /*This has been given as an extension, so that you can add more variables to the graph_box
                         though, note that, you will be able to access using this->data->your_var_name */
                         //        coord_type coords;  // @NOTE - not actually needed, though this maybe used in my implementation of snake
                                 // @todo - I am removing the functionality of having a coord in each graph node, in an attempt to make it as small as sufficient
-
-    Graph_Box_3D* RIGHT{nullptr};
-    Graph_Box_3D* LEFT{ nullptr };
-    Graph_Box_3D* UP{ nullptr };
-    Graph_Box_3D* DOWN{ nullptr };
-    Graph_Box_3D* FRONT_FACING{ nullptr };
-    Graph_Box_3D* BACK_FACING{ nullptr };
 
     // LEARNT - friending a templated class (down below is the `syntax` found, to friend `all` templated versions of Graph_Matrix)
     template<typename, typename> friend class Graph_Matrix_3D;    //will make all Graph_Matrix friend to this
