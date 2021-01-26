@@ -126,9 +126,12 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* sourc
 }
 
 template<typename node_dtype, typename dimen_t>
-template<typename _Func>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin, graph_box_type* end, Direction dir, _Func func)
+template<typename Func>
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin, graph_box_type* end, Direction dir, Func func)
 {
+	static_assert(std::is_invocable_v<Func, const node_dtype&>,
+		"The Callable expected by for_each must take only `node_dtype&` as input");
+
 	Graph_Box_3D<node_dtype>* tmp{ begin };
 
 	while (tmp != end)

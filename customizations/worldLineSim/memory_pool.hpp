@@ -1,3 +1,5 @@
+// This memory pool is based on using the Bucket_Handle, but there will likely need to be management using it, it's likely beneficial when many array allocations (and in special cases, of almost same sizes) are to be done
+
 #include <stack>
 #include <cstdint>
 #include <cstdlib>	// for std::malloc
@@ -61,7 +63,7 @@ class Bucket {	// each bucket in itself is NOT thread-safe
 	std::unique_ptr<Bucket_Handle*> get_handle_with_size(int16_t size) {
 		int tmp = size;
 		int k = 0;
-		for (;k < this->mem_arr; ++k)
+		for (;k < this->length; ++k)
 		{
 			--tmp;
 			if (mem_arr[k])	tmp = size;

@@ -2,10 +2,6 @@
 
 #include "graph_mat_decl.hpp"
 
-#if DEBUG_MODE
-#include "test_util/node_conn.hpp"
-#endif
-
 template< typename node_dtype, typename dimen_t>
 void Graph_Matrix<node_dtype, dimen_t>::pushCol(){ // add a column at end
 	this->tr_box->RIGHT = new graph_box_type;
@@ -99,10 +95,6 @@ void Graph_Matrix<node_dtype, dimen_t>::injectCol(){ // add a column at leftmost
 		// in the else case of ?: so that the next loop doesn't execute in case the matrix contained only 1 row
 
 	dimen_t count{1};
-	#if DEBUG_MODE
-		test::logger::__IsConncted(this->tl_box, this->bl_box, DOWN);
-		test::logger::__IsConncted(last_col_iter, this->bl_box, DOWN);
-	#endif
 	// @CAUTION - Seg Fault here, Cause-> tl_box and bl_box aren't connected in a up to down fashion
 	while( last_col_iter != this->bl_box ){ //ideally shouldn't be infinite, since last_col_iter->DOWN should reach the bottom surely
 		// we also have to give the previous box, left, right, down pointer to the new Box

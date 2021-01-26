@@ -4,8 +4,8 @@
 #include <vector>
 #include <utility>
 
-#include "box_base.hpp"
-#include "direction.hpp"
+#include "../../box_base.hpp"
+#include "../../direction.hpp"
 
 template< typename node_dtype >
 struct Graph_Box    // @node - it should be non-copyable

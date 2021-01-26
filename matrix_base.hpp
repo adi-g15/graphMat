@@ -9,7 +9,7 @@
 
 class Matrix_Base {
 
-protected:	// it shouldn't be instantiable
+protected:
 	const int _dimension;
 
 	int getDimensionsOfMatrix() { return this->_dimension; }
@@ -21,9 +21,7 @@ protected:	// it shouldn't be instantiable
 
 	Matrix_Base(int dimension): _dimension(dimension) {}
 
-public:
-	Matrix_Base(Matrix_Base&) = default;
-	Matrix_Base(Matrix_Base&&) = default;
+	// virtual ~Matrix_Base();
 };
 
 template<class graph_box_type>
