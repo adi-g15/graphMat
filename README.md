@@ -1,5 +1,4 @@
 # GraphMat
-----
 
 Matrix implemented as a graph, specially for the use case when it should be auto expanding at custom rate, specially in simulations.
 A matrix header-only library, uses graphs internally, helpful when your matrix is part of a simulation where it needs to grow many times (or just automatically keep growing).
@@ -20,17 +19,13 @@ Then, i had read somewhere, _A matrix is inherently a graph, each node connected
 
 So, now the point of it, So i created a matrix data structure, based on a graph, that completes the requirements for `point 1 above`, though it doesn't have constant time lookups like std::vector, but for my case, i chose to create it like this.
 
-<hr />
-
 # Documentation
 Documentation is being maintained in `wiki` section of this repo.
 
+https://github.com/adi-g15/graphMat/wiki/Graph-Matrix-3D
+
 # Note -
 You can likely just use a std::list<std::list<std::list>>, though then memory allocations will be for each node individually, and also i wanted a better structure according to the needs of worldLine Simulation project, auto expansion being one.
-
-## Probable Uses -
-
-It will likely be used as the `world plot`, since think, this world will be expanding (continuosly or on need basis, so I didn't wanted `vector<vector>`, that had been quite an overhead for expansion like 40\*40 to 100\*100)
-Also, in case of `vector<vector>`, you will likely have it grow in ONLY TWO DIRECTIONS, and I WANTED IT TO GROW EQUALLY IN ALL FOUR DIRECTIONS, now this would, almost always mean, that even for a simple expansion, the `vector<vector>` has to completely allocate to a whole new place
+Also, in case of `vector<vector<vector<>>>`, you will likely have it grow in ONLY TWO DIRECTIONS, and I WANTED IT TO GROW EQUALLY IN ALL FOUR DIRECTIONS, now this would, almost always mean, that even for a simple expansion, the `vector<vector<vector<>>>` has to completely allocate to a whole new place
 
 © Aditya Gupta 2021
