@@ -1,6 +1,10 @@
 #pragma once
 
-#include "util/coord.hpp"
+/**
+ * This header is not meant to be included directly
+*/
+
+#include "../../util/coord.hpp"
 #include <map>
 #include <vector>
 #include <algorithm>

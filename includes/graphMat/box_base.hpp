@@ -1,5 +1,9 @@
 #pragma once
 
+/**
+ * This header is not meant to be included directly
+*/
+
 #include "direction.hpp"
 
 class Box_Base {

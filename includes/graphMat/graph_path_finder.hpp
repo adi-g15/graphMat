@@ -1,5 +1,9 @@
 #pragma once
 
+/**
+ * This header is not meant to be included directly (as of now)
+*/
+
 #include "includes/snake.hpp"
 #include "includes/declarations.hpp"
 #include "includes/forward_decl.hpp"

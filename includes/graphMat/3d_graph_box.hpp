@@ -1,7 +1,7 @@
 #pragma once
 
 #include "box_base.hpp"
-#include "util/coord.hpp"
+#include "../../util/coord.hpp"
 
 template<typename dtype>
 class Graph_Box_3D : Box_Base{
