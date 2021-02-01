@@ -7,13 +7,22 @@
 namespace util
 {
     template<typename dimen_t = int32_t> // @assert - dimen_t must be integral type
-    struct _coord{
+    struct _coord3D{
+        typedef dimen_t type;
         dimen_t mX, mY, mZ;
 
-        inline void operator+=(const _coord<dimen_t>& to_add) {
+        inline void operator+=(const _coord3D<dimen_t>& to_add) {
             this->mX += to_add.mX;
             this->mY += to_add.mY;
             this->mZ += to_add.mZ;
+        }
+
+        inline _coord3D<dimen_t> operator+(const std::array<dimen_t, 3>& to_add) const {
+            return {
+                this->mX + to_add[0],
+                this->mY + to_add[1],
+                this->mZ + to_add[2]
+            };
         }
 
         inline void operator+=(const std::array<dimen_t,3>& to_add) {
@@ -23,23 +32,23 @@ namespace util
         }
 
         //inline bool operator==(const _coord<dimen_t>& second) const = default;  // requires C++20
-        inline bool operator==(const _coord<dimen_t>& second) const {
+        inline bool operator==(const _coord3D<dimen_t>& second) const {
             return (this->mX == second.mX) &&
                     (this->mY == second.mY) &&
                     (this->mZ == second.mZ);
         }
 
-        inline bool operator<(const _coord<dimen_t>& second) const {
+        inline bool operator<(const _coord3D<dimen_t>& second) const {
             if (this->mX < second.mX)  return true;
             else if (this->mY < second.mY) return true;
             else return this->mZ < second.mZ;
         }
 
-        inline bool operator>(const _coord<dimen_t>& second) const {
+        inline bool operator>(const _coord3D<dimen_t>& second) const {
             return !this->operator==(second) && !this->operator<(second);
         }
 
-        friend std::ostream& operator<<(std::ostream& os, const _coord<dimen_t>& coord){
+        friend std::ostream& operator<<(std::ostream& os, const _coord3D<dimen_t>& coord){
             if(coord.mX >= 0){
                 os << ' ';
                 if(coord.mX < 10)
@@ -67,7 +76,7 @@ namespace util
             return os;
         }
 
-        _coord() noexcept : _coord(dimen_t{}, dimen_t{}, dimen_t{}) {}
-        _coord(dimen_t x, dimen_t y, dimen_t z) noexcept : mX(x), mY(y), mZ(z){}
+        _coord3D() noexcept : _coord3D(dimen_t{}, dimen_t{}, dimen_t{}) {}
+        _coord3D(dimen_t x, dimen_t y, dimen_t z) noexcept : mX(x), mY(y), mZ(z){}
     };
 } // namespace util

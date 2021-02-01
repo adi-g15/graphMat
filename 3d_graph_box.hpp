@@ -1,22 +1,22 @@
 #pragma once
 
 #include "box_base.hpp"
+#include "util/coord.hpp"
 
 template<typename dtype>
 class Graph_Box_3D : Box_Base{
     typedef int32_t dimen_t;
 
 #ifndef GRAPH_MAT_NO_COORD
-    util::_coord<dimen_t> coordinate;
+    util::_coord3D<dimen_t> coordinate;
     void set_coord(dimen_t, dimen_t, dimen_t);
-    void set_coord(util::_coord<dimen_t>&& new_coord);
+    void set_coord(util::_coord3D<dimen_t>&& new_coord);
 #endif
 
 public:
-    Graph_Box_3D* get_box() override{ return this; }    // @self - no need to specify templates here,since compiler can deduce from return statement (if doing definitions directly inside class)
-    const Graph_Box_3D* get_box() const override { return this; }
+    // @learnt @self - no need to specify templates here,since compiler can deduce from return statement (if doing definitions directly inside class)
 
-    inline Graph_Box_3D* get_adj_box(Direction dir) const override {
+    inline Graph_Box_3D* get_adj_box(Direction dir) const {
         switch (dir)
         {
         case Direction::UTTAR:
@@ -73,7 +73,7 @@ public:
     }
 #endif // !GRAPH_MAT_NO_COORD
 
-    template<typename DTYPE = dtype, typename = std::enable_if_t<std::is_move_constructible_v<T>> >
+    template<typename DTYPE = dtype, typename = std::enable_if_t<std::is_move_constructible_v<dtype>> >
     Graph_Box_3D(dtype&& data) : data(data) {
         this->RIGHT = nullptr;
         this->LEFT = nullptr;
@@ -92,6 +92,7 @@ public:
     }
 
     const dtype& getData() const { return this->data; }
+    dtype& getDataRef() { return this->data; }
 
     Graph_Box_3D* RIGHT{ nullptr };
     Graph_Box_3D* LEFT{ nullptr };
@@ -107,16 +108,14 @@ protected:
                         //        coord_type coords;  // @NOTE - not actually needed, though this maybe used in my implementation of snake
                                 // @todo - I am removing the functionality of having a coord in each graph node, in an attempt to make it as small as sufficient
 
-    // LEARNT - friending a templated class (down below is the `syntax` found, to friend `all` templated versions of Graph_Matrix)
+    // @learnt - friending a templated class (down below is the `syntax` found, to friend `all` templated versions of Graph_Matrix)
     template<typename, typename> friend class Graph_Matrix_3D;    //will make all Graph_Matrix friend to this
-    //friend class Graph_Matrix<int, int32_t>;    //will make all Graph_Matrix friend to this
-    friend class WorldPlot; // This line maybe removed later, it is worldLine Simulator specific
-
+    //friend class Graph_Matrix<int, int32_t>;
 };
 
 #ifndef GRAPH_MAT_NO_COORD 
 template<typename dtype>
-inline void Graph_Box_3D<dtype>::set_coord(util::_coord<dimen_t>&& new_coord)
+inline void Graph_Box_3D<dtype>::set_coord(util::_coord3D<dimen_t>&& new_coord)
 {
     this->coordinate = std::move(new_coord);
 }

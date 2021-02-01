@@ -29,14 +29,14 @@ enum class MatrixLayer {
 
 template<typename node_dtype, typename dimen_t = int32_t>
 class Graph_Matrix_3D : Matrix_Base{
-
+	using value_type = node_dtype;
 	static_assert(std::is_signed_v<dimen_t>, "Dimension type must be a signed integral (for safety reasons, so that bugs don't appear due to unsigned subtractions)");
 	static_assert(std::is_default_constructible_v<node_dtype>, "The data type of values in the matrix must be default constructible");
 	// Now pointer support added
 	//static_assert( ! std::is_pointer_v<node_dtype>, "Currently it doesn't support using pointers to be the data held by each box, though it maybe implemented, but not now");
 
 	typedef Graph_Box_3D<node_dtype> graph_box_type;
-	typedef util::_coord<dimen_t> coord_type;
+	typedef util::_coord3D<dimen_t> coord_type;
 	typedef	std::variant<
 		std::function<node_dtype && ()>,
 		std::function<node_dtype && (int, int, int)>,
@@ -75,10 +75,10 @@ protected:
 
 		std::optional< Init_Func > initializer_function;
 
-		void set_initializer(const Init_Func& initialiser) {
+		void set_initializer(const Init_Func& initialiser) noexcept {
 			initializer_function = initialiser;
 		}
-		void reset_initializer() {
+		void reset_initializer() noexcept {
 			this->initializer_function.reset();
 		}
 
@@ -86,9 +86,10 @@ protected:
 	}__expansion_state;
 
 	// AUTO EXPANSION LOGIC START
-		virtual void auto_expansion() override;	 //keeps expanding TILL expansion_flag is TRUE
-		virtual void expand_once();
-		virtual void expand_n_unit(const uint8_t);
+	// Edit: 26th Jan: Changed from virtual to non-virtual member functions
+		void auto_expansion();	 //keeps expanding TILL expansion_flag is TRUE
+		void expand_once();
+		void expand_n_unit(const uint8_t);
 	// AUTO EXPANSION LOGIC END
 
 	struct {
@@ -119,14 +120,8 @@ protected:
 	void pop_zplus_layer();
 	void pop_zminus_layer();
 
-	void disp_xy_layer(MatrixLayer ltype = MatrixLayer::TOP);
-	void disp_xy_layer(int lnum, std::ostream& os = std::cout);
-
-	template < typename _Func >
-	void for_each(graph_box_type* source, Direction, _Func);	// func will receive only one param, ie. the node_dtype data
-
-	template<typename _Func>
-	void for_each(graph_box_type* begin, graph_box_type* end, Direction dir, _Func func);
+	void disp_xy_layer(MatrixLayer ltype = MatrixLayer::TOP) const noexcept;
+	void disp_xy_layer(int lnum, std::ostream& os = std::cout) const noexcept;
 
 	//template < typename _Cond, typename _Func >	// though this is an idea, but doesn't seem of much help
 	//void for_each(_Cond condition_function_takes_data_returns_direction_to_move, _Func);	// func will receive only one param, ie. the node_dtype data
@@ -143,13 +138,13 @@ public:
 	* 
 	* @note2 - It expands equally at each plane, again, for more customization it can be overloaded :D
 	*/
-	virtual void pause_auto_expansion() override;
-	virtual void resume_auto_expansion() override;
+	void pause_auto_expansion();
+	void resume_auto_expansion();
 
 	// 	OVERLOAD similar to resume_auto_expansion(), just that for each new box, the callable is executed, and returned value assigned to box::data
 	template<typename Callable>
 	void resume_auto_expansion(Callable&&);
-	void set_expansion_rate(float);
+	void set_expansion_rate(float) noexcept;
 
 	graph_box_type* operator[](const coord_type&);
 	const graph_box_type* operator[](const coord_type&) const;
@@ -169,21 +164,28 @@ public:
 		} tmp_resize_data;	// this will be used by ALL size INREASING member function (so better declare than pass always)
 
 		std::optional< Init_Func > data_initialiser;
-		void set_initialiser(const Init_Func& func) { data_initialiser = func; }
-		void reset_initialiser() { data_initialiser.reset(); }
+		void set_initialiser(const Init_Func& func) noexcept { data_initialiser = func; }
+		void reset_initialiser() noexcept { data_initialiser.reset(); }
 
 		void resize(const dimen_t, const dimen_t, const dimen_t, RESIZE_TYPE = RESIZE_TYPE::MANUAL);
 		void resize(const dimen_t, const dimen_t, const dimen_t, const Init_Func& data_initialiser, RESIZE_TYPE = RESIZE_TYPE::MANUAL);
 
 		std::tuple<dimen_t, dimen_t, dimen_t> get_size() const noexcept;
+		std::array<std::pair<dimen_t, dimen_t>, 3> _implementation_detail_get_dimension_bounds() const noexcept;
 
+	template < typename Func >
+	void for_each(graph_box_type* source, Direction, Func) noexcept;	// func will receive only one param, ie. the node_dtype data
+
+	template<typename Func>
+	void for_each(graph_box_type* begin, graph_box_type* end, Direction dir, Func func) noexcept;
+		
 	/*
 		A common mistake is to declare two function templates that differ only in their default template arguments. This is illegal because default template arguments are not part of function template's signature, and declaring two different function templates with the same signature is illegal.
 	*/
 	template<typename _Func, typename std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>>>
 	void for_all(_Func);	// _Func is a lambda that receives modifiable reference to the data box
 
-	template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>, int> = 0 >
+	template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>> >
 	void for_all(_Func);	// _Func is a lambda that receives the 3 dimensions
 
 	graph_box_type* find(const node_dtype& value);	// uses operator== for comparison

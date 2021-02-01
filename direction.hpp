@@ -3,21 +3,29 @@
 #include <vector>
 #include <array>
 
-enum class Direction: uint8_t{ // intentionally not enum class now
-	UTTAR = 0,	// North
-	PURVA,		// EAST
-	PASHCHIM,	// WEST
-	DAKSHIN,	// SOUTH
-	ISHANYA,	// North-East
-	AGNEYA,		// South-East
-	NAIRUTYA,	// South-West
-	VAYAVYA,	// North-West
-	URDHWA,		// (Akash) Skywards/Upwards
-	ADHARASTHA	// (Patal) Downwards
+enum class Direction: uint8_t{
+	UTTAR    = 0,	// North
+	UP       = 0,	// Up, i wanted to keep the earlier names, so declaring common words as enums with same value
+
+	PURVA    = 1,	// EAST
+	RIGHT    = 1,	// RIGHT
+
+	PASHCHIM = 2,	// WEST
+	LEFT     = 2,	// LEFT
+
+	DAKSHIN  = 3,	// SOUTH
+	DOWN     = 3,	// DOWN
+
+	ISHANYA  = 4,	// North-East
+	AGNEYA   = 5,	// South-East
+	NAIRUTYA = 6,	// South-West
+	VAYAVYA  = 7,	// North-West
+	URDHWA   = 8,	// (Akash) Skywards/Frontwards
+	ADHARASTHA = 9	// (Patal) Downwards
 };
 
 // equivalent to {x,y} in a matrix, this typedef defines the position of a box/point, in an intuitive way (to me atleast :D), and feels more closer to the implementation than to give indices, since here we have directions mostly
-typedef std::vector<std::pair< Direction, uint16_t >> graph_position;
+typedef std::vector<std::pair< Direction, int >> graph_position;	// For eg. {{Right,4}, {Left,1}} means 4 Right turns, then a Left turn (from origin generally, but sense may change based on implementation, direct use is discouraged)
 
 namespace util {
 	inline auto getOppositeDirection(Direction d) {
@@ -53,7 +61,7 @@ namespace util {
 
 namespace statics{
 	inline namespace graph_statics {
-		static std::array<Direction, 10> directions{ Direction::UTTAR, Direction::PURVA, Direction::PASHCHIM, Direction::DAKSHIN, Direction::ISHANYA, Direction::AGNEYA, Direction::NAIRUTYA, Direction::VAYAVYA, Direction::URDHWA, Direction::ADHARASTHA };
+		static constexpr std::array<Direction, 10> directions{ Direction::UTTAR, Direction::PURVA, Direction::PASHCHIM, Direction::DAKSHIN, Direction::ISHANYA, Direction::AGNEYA, Direction::NAIRUTYA, Direction::VAYAVYA, Direction::URDHWA, Direction::ADHARASTHA };
 	}
 }
 

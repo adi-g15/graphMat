@@ -113,8 +113,17 @@ inline std::tuple<dimen_t, dimen_t, dimen_t>  Graph_Matrix_3D<node_dtype, dimen_
 }
 
 template<typename node_dtype, typename dimen_t>
-template<typename _Func>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* source, Direction dir, _Func func)
+inline std::array<std::pair<dimen_t, dimen_t>, 3> Graph_Matrix_3D<node_dtype, dimen_t>::_implementation_detail_get_dimension_bounds() const noexcept {
+	return {
+		std::make_pair(this->min_x, this->max_x),
+		std::make_pair(this->min_y, this->max_y),
+		std::make_pair(this->min_z, this->max_z)
+	};
+}
+
+template<typename node_dtype, typename dimen_t>
+template<typename Func>
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* source, Direction dir, Func func) noexcept
 {
 	Graph_Box_3D<node_dtype>* tmp{ source };
 
@@ -127,7 +136,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* sourc
 
 template<typename node_dtype, typename dimen_t>
 template<typename Func>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin, graph_box_type* end, Direction dir, Func func)
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin, graph_box_type* end, Direction dir, Func func) noexcept
 {
 	static_assert(std::is_invocable_v<Func, const node_dtype&>,
 		"The Callable expected by for_each must take only `node_dtype&` as input");
@@ -185,7 +194,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_all(_Func func) {
 }
 
 template<typename node_dtype, typename dimen_t>
-template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>, int> = 0 >
+template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>> >
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_all(_Func func) {
 	graph_box_type*
 		x_temp{ this->top_left_front },
@@ -377,7 +386,7 @@ Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::swastic_find(gra
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::expand_once()
 {
-	const float decrease_rate = 0.90;	// 90% of previous expansion speed
+	constexpr float decrease_rate = 0.90f;	// 90% of previous expansion speed
 
 	if (this->__expansion_state.time_since_speed_updated % 10 == 0) {
 		this->__expansion_state.curr_expansion_speed = this->__expansion_state.expansion_speed;
@@ -459,7 +468,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 
 			do
 			{
-				tmp_y->RIGHT = &(new_boxes[index++]);
+				tmp_y->RIGHT = (new_boxes + index++);
 
 				curr_new = tmp_y->RIGHT;
 
@@ -574,7 +583,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_x_layer(int num)
 
 			do
 			{
-				tmp_y->LEFT = &(new_boxes[index++]);
+				tmp_y->LEFT = (new_boxes + index++);
 
 				curr_new = tmp_y->LEFT;
 
@@ -774,7 +783,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 
 			do
 			{
-				tmp_x->UP = &(new_boxes[index++]);
+				tmp_x->UP = (new_boxes + index++);
 
 				curr_new = tmp_x->UP;
 
@@ -849,7 +858,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 {
 	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards -ve y axis
 	if (num < 1)	 return;
-	int num_box_required = num * (total_abs.mX * total_abs.mZ);
+	const int num_box_required = num * (total_abs.mX * total_abs.mZ);
 
 	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
 	Init_Func* init_function;
@@ -888,7 +897,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 			x = min_x;
 			do
 			{
-				tmp_x->DOWN = &(new_boxes[index++]);
+				tmp_x->DOWN = (new_boxes + index++);
 
 				curr_new = tmp_x->DOWN;
 
@@ -1086,7 +1095,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 
 			do
 			{
-				tmp_x->FRONT_FACING = &(new_boxes[index++]);
+				tmp_x->FRONT_FACING = (new_boxes + index++);
 
 				curr_new = tmp_x->FRONT_FACING;
 
@@ -1200,7 +1209,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 			x = min_x;
 			do
 			{
-				tmp_x->BACK_FACING = &(new_boxes[index++]);
+				tmp_x->BACK_FACING = (new_boxes + index++);
 
 				curr_new = tmp_x->BACK_FACING;
 
@@ -1354,7 +1363,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::pop_zminus_layer()
 }
 
 template<typename node_dtype, typename dimen_t>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(MatrixLayer ltype)
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(MatrixLayer ltype) const  noexcept
 {
 	switch (ltype)
 	{
@@ -1368,7 +1377,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(MatrixLayer ltyp
 }
 
 template<typename node_dtype, typename dimen_t>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std::ostream& os)
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std::ostream& os) const noexcept
 {
 	if (z_lnum < min_z || z_lnum > max_z)	return disp_xy_layer(MatrixLayer::TOP);
 
@@ -1409,20 +1418,17 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::auto_expansion()
 {
-	//this->is_auto_paused = false;
 	while (this->__expansion_state.expansion_flag)
 	{
-		std::cout << "Expanding...\n";
+		//std::clog << "Expanding...\n";
 		this->expand_once();
 
 		// sleep for 1 unit time
 		std::this_thread::sleep_for(std::chrono::milliseconds(this->__expansion_state.milliseconds_in_unit_time));
 	}
-	//while (!is_auto_paused)
-	//{
+
 	this->auto_expansion_convar.notify_one();
-	std::cout << "Stopped" << std::endl;
-	//}
+	//std::clog << "\nStopped AutoExpansion" << std::endl;
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1437,7 +1443,6 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::pause_auto_expansion()
 	{
 		this->auto_expansion_convar.wait_for(lock, std::chrono::milliseconds(300));
 	}
-	return;
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1453,7 +1458,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion()
 }
 
 template<typename node_dtype, typename dimen_t>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::set_expansion_rate(float rate)
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::set_expansion_rate(float rate) noexcept
 {
 	this->__expansion_state.expansion_speed = rate;
 	this->__expansion_state.curr_expansion_speed = rate;
@@ -1479,16 +1484,6 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion(Callable
 template<typename node_dtype, typename dimen_t>
 inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const coord_type& pos)
 {
-
-	return const_cast<
-		const Graph_Matrix_3D<node_dtype, dimen_t>*
-	>(this)->operator[](pos);
-}
-
-template<typename node_dtype, typename dimen_t>
-inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const coord_type& pos) const
-{
-
 	// we start from origin, ie. {0,0,0}
 	graph_position g_path;
 	if (pos.mX < 0) {
@@ -1513,6 +1508,14 @@ inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::ope
 	}
 
 	return this->operator[](std::move(g_path));
+}
+
+template<typename node_dtype, typename dimen_t>
+inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const coord_type& pos) const
+{
+	return const_cast<
+		Graph_Matrix_3D<node_dtype, dimen_t>*
+	>(this)->operator[](pos);
 }
 
 template<typename node_dtype, typename dimen_t>

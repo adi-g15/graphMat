@@ -3,8 +3,10 @@
 #include "direction.hpp"
 
 class Box_Base {
-    // @note @future -> Have this coordinate in DEBUG builds, as well as the constructor taking the dimensions in debug builds
-    virtual Box_Base* get_box() { return this; }
-    virtual const Box_Base* get_box() const { return this; }
-    virtual Box_Base* get_adj_box(Direction dir) const = 0;
+    // Edit: 26th Jan, modifying these from virtual to non-virtual methods
+    //Box_Base* get_adj_box(Direction dir) const;
+
+protected:
+    Box_Base() {}
+    ~Box_Base() {}
 };

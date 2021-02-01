@@ -3,28 +3,19 @@
 template < typename node_dtype, typename dimen_t = int32_t >
 class Cube_Matrix : public Graph_Matrix_3D<node_dtype, dimen_t>
 {
-	dimen_t order{ 1 };
 public:
-	void resizeOrder(int n) {
+	inline void resizeOrder(int n) {
 		this->resize({ n,n,n });
-		this->order = std::min ( n, this->total_abs.mX );	// can directly do `= n;` too
 	}
 
-	auto getOrder() const { return this->order; }
+	inline auto getOrder() const noexcept { return std::get<0>( this->get_size() ); }
 
-	Cube_Matrix()
-	{
-	}
+	Cube_Matrix(): Graph_Matrix_3D() {}
 
-	Cube_Matrix(dimen_t order)
-	{
-		resizeOrder(order);
-	}
+	Cube_Matrix(dimen_t order) : Graph_Matrix_3D<node_dtype, dimen_t>({ order, order, order }) {}
 
-	~Cube_Matrix()
-	{
-	}
+	template<typename Func>
+	Cube_Matrix(dimen_t order, Func&& func): Graph_Matrix_3D({ order, order, order }, func) {}
 
-private:
-
+	~Cube_Matrix() {}
 };
