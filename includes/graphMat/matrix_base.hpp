@@ -43,8 +43,14 @@ public:
 	graph_box_type* Alloc(int num = 1) {
 		//if (num < 1)	throw std::invalid_argument("Can't allocate 0 or negative numbers of blocks in MemoryAlloc::Alloc");
 		if (num < 1)	return nullptr;
+		static int total = 0;
+		total += num;
 
-		std::printf("Allocating %d bytes\n", num);
+#ifdef DEBUG
+		std::fprintf(stderr, "[Total - %d KB] Allocating %d bytes\n", total / 1000, num);
+		std::fflush(stderr);
+#endif // DEBUG
+
 		this->allocated_memory_loc
 			.emplace_back(new graph_box_type[num]);
 

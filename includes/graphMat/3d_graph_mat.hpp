@@ -1,8 +1,10 @@
 #pragma once
 
 #include "3d_graph_mat_decl.hpp"
+#include "iterators.hpp"
 #include <type_traits>	// for std::is_invocable
 #include <thread>
+#include <cassert>
 
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, const dimen_t newY, const dimen_t newZ, const Init_Func& initialiser, RESIZE_TYPE resize_type)
@@ -81,6 +83,13 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, con
 		}
 	}
 
+#ifdef DEBUG
+	static bool resize_called_again = false;
+	if (resize_called_again) std::cout << "Already resizing" << std::endl;
+
+	resize_called_again = true;
+#endif // DEBUG
+
 	org_t_abs = total_abs.mZ;
 	if (this->total_abs.mZ < newZ) {
 		if (tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL) {
@@ -105,6 +114,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resize(const dimen_t newX, con
 	else {
 		tmp_resize_data.add_or_inject_flag = ! tmp_resize_data.add_or_inject_flag;	// toggle it, so next time, planes get added in alternative fashion (equally on both sides of each axis)
 	}
+
+#ifdef DEBUG
+	resize_called_again = false;
+#endif // DEBUG
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -397,7 +410,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::expand_once()
 	this->__expansion_state.curr_expansion_speed *= decrease_rate;
 
 	// will be optimised away by compiler,since const local
-	const int int_part{ static_cast<int>(std::trunc(this->__expansion_state.increase_units)) };
+	const int int_part{ (int)(this->__expansion_state.increase_units) };
 	expand_n_unit(int_part);
 
 	// get float value after the decimal (logically equivalent to (float % 1) )
@@ -535,6 +548,8 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_x_layer(int num)	// adds t
 		++(this->max_x);
 		++(this->total_abs.mX);
 	}
+
+	assert(num_box_required == index);
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -583,6 +598,8 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_x_layer(int num)
 
 			do
 			{
+				if (index > num_box_required)	exit(1);
+
 				tmp_y->LEFT = (new_boxes + index++);
 
 				curr_new = tmp_y->LEFT;
@@ -650,6 +667,8 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_x_layer(int num)
 		--(this->min_x);
 		++(this->total_abs.mX);
 	}
+
+	assert(num_box_required == index);
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -740,7 +759,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::pop_xminus_layer()
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 {
-	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards -ve y axis
+	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards +ve x axis, both starting at top_left_front
 	if (num < 1)	 return;
 
 	int num_box_required = num * (total_abs.mX * total_abs.mZ);
@@ -761,7 +780,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 	graph_box_type* tmp_x{ this->top_left_front },
 		* tmp_z{ this->top_left_front },
 		* tmp_z_curr_prev{ nullptr },	// just before the current new box
-		* tmp_x_curr_prev{ nullptr };	// just above the current new box
+		* x_prev_new_box{ nullptr };	// just above the current new box
 
 	int index = 0;	// index in the memory above (num_box_required)
 
@@ -774,7 +793,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 		tmp_x = this->top_left_front;
 		tmp_z = this->top_left_front;
 		tmp_z_curr_prev = nullptr;
-		tmp_x_curr_prev = nullptr;
+		x_prev_new_box = nullptr;
 		z = max_z;
 
 		while (tmp_z)
@@ -783,7 +802,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 
 			do
 			{
-				tmp_x->UP = (new_boxes + index++);
+				tmp_x->UP = (new_boxes + index++);	// ie. &new_box[index++]
 
 				curr_new = tmp_x->UP;
 
@@ -815,7 +834,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 
 				curr_new->DOWN = tmp_x;	// all other pointers are automatically nullptr
 				curr_new->FRONT_FACING = tmp_z_curr_prev;
-				curr_new->LEFT = tmp_x_curr_prev;
+				curr_new->LEFT = x_prev_new_box;
 
 				if (curr_new->FRONT_FACING)
 					curr_new->FRONT_FACING->BACK_FACING = curr_new;
@@ -823,7 +842,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 				if (curr_new->LEFT)
 					curr_new->LEFT->RIGHT = curr_new;
 
-				tmp_x_curr_prev = curr_new;	// @important @note -> temp_x_prev and temp_z_prev WILL be on the new layer itself, don't equate with tmp_y or tmp_<.> since it's on the previous layer
+				x_prev_new_box = curr_new;	// @important @note -> temp_x_prev and temp_z_prev WILL be on the new layer itself, don't equate with tmp_y or tmp_<.> since it's on the previous layer
 				tmp_x = tmp_x->RIGHT;	// move towards +x axis
 
 				if (tmp_z_curr_prev) {
@@ -833,7 +852,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 				++x;
 			} while (tmp_x);
 
-			tmp_x_curr_prev = nullptr;	// for the first new block at min_x, there won't be a prev element
+			x_prev_new_box = nullptr;	// for the first new block at min_x, there won't be a prev element
 
 			tmp_z_curr_prev = tmp_z->UP;	// now the tmp_z_curr_prev will be on the new layer formed
 			tmp_z = tmp_z->BACK_FACING;
@@ -851,14 +870,16 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_y_layer(int num)
 		++(this->total_abs.mY);
 	}
 
+
+	assert(num_box_required == index);
 }
 
 template<typename node_dtype, typename dimen_t>
-inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
+inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int number_of_layers)
 {
-	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards -ve y axis
-	if (num < 1)	 return;
-	const int num_box_required = num * (total_abs.mX * total_abs.mZ);
+	// @brief tmp_z goes towards -ve z axis, and tmp_x goes towards +ve x axis
+	if (number_of_layers < 1)	 return;
+	const int num_box_required = number_of_layers * (total_abs.mX * total_abs.mZ);
 
 	bool use_initialiser = this->tmp_resize_data.curr_resize_type == RESIZE_TYPE::MANUAL ? this->data_initialiser.has_value() : this->__expansion_state.initializer_function.has_value();
 	Init_Func* init_function;
@@ -876,20 +897,19 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 	graph_box_type* tmp_x{ this->bottom_left_front },
 		* tmp_z{ this->bottom_left_front },
 		* tmp_z_curr_prev{ nullptr },	// just before the current new box
-		* tmp_x_curr_prev{ nullptr };	// just above the current new box
+		* x_prev_new_box{ nullptr };	// just above the current new box
 
 	int index = 0;	// index in the memory above (num_box_required)
-	//	@ assert that total number of times these loops run doesn't exceed `num_box_required`
 
 	graph_box_type* curr_new;
 
 	dimen_t x{ min_x }, z{ max_z };
-	for (auto i = 0; i < num; i++)
+	for (auto i = 0; i < number_of_layers; i++)
 	{
 		tmp_x = this->bottom_left_front;
 		tmp_z = this->bottom_left_front;
 		tmp_z_curr_prev = nullptr;
-		tmp_x_curr_prev = nullptr;
+		x_prev_new_box = nullptr;
 		z = max_z;
 
 		while (tmp_z)
@@ -929,7 +949,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 
 				curr_new->UP = tmp_x;	// all other pointers are automatically nullptr
 				curr_new->FRONT_FACING = tmp_z_curr_prev;
-				curr_new->LEFT = tmp_x_curr_prev;
+				curr_new->LEFT = x_prev_new_box;
 
 				if (curr_new->FRONT_FACING)
 					curr_new->FRONT_FACING->BACK_FACING = curr_new;
@@ -937,17 +957,19 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 				if (curr_new->LEFT)
 					curr_new->LEFT->RIGHT = curr_new;
 
-				tmp_x_curr_prev = curr_new;
-				tmp_x = tmp_x->RIGHT;	// move towards +x axis
-
 				if (tmp_z_curr_prev) {
 					tmp_z_curr_prev = tmp_z_curr_prev->RIGHT;
 				}
 
 				++x;
+				x_prev_new_box = curr_new;
+				tmp_x = tmp_x->RIGHT;	// move towards +x axis
 			} while (tmp_x);
+#ifdef DEBUG
+			assert(x == this->max_x + 1);
+#endif // DEBUG
 
-			tmp_x_curr_prev = nullptr;
+			x_prev_new_box = nullptr;
 
 			tmp_z_curr_prev = tmp_z->DOWN;
 			tmp_z = tmp_z->BACK_FACING;
@@ -955,6 +977,9 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 
 			--z;
 		}
+#ifdef DEBUG
+		assert(z == this->min_z - 1);
+#endif // DEBUG
 
 		this->bottom_right_back = this->bottom_right_back->DOWN;
 		this->bottom_right_front = this->bottom_right_front->DOWN;
@@ -964,6 +989,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_y_layer(int num)
 		--(this->min_y);
 		++(this->total_abs.mY);
 	}
+
+#ifdef DEBUG
+	assert(num_box_required == index);
+#endif // DEBUG
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1144,6 +1173,9 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 
 				++x;
 			} while (tmp_x);
+#ifdef DEBUG
+			assert(x == this->max_x + 1);
+#endif // DEBUG
 
 			tmp_x_curr_prev = nullptr;	// there isn't anything preeceding the 1st element (in loop when it enters)
 			tmp_y_curr_prev = tmp_y->FRONT_FACING;
@@ -1153,6 +1185,9 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 
 			--y;
 		}
+#ifdef DEBUG
+		assert(y == this->min_y - 1);
+#endif // DEBUG
 
 		this->top_right_front = this->top_right_front->FRONT_FACING;
 		this->bottom_right_front = this->bottom_right_front->FRONT_FACING;
@@ -1162,6 +1197,11 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::add_z_layer(int num)
 		++(this->max_z);
 		++(this->total_abs.mZ);
 	}
+
+#ifdef DEBUG
+	assert(num_box_required == index);
+#endif // DEBUG
+
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1259,6 +1299,9 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 
 				++x;
 			} while (tmp_x);
+#ifdef DEBUG
+			assert(x == this->max_x + 1);
+#endif // DEBUG
 
 			tmp_x_curr_prev = nullptr;	// there isn't anything preeceding the 1st element (in loop when it enters)
 			tmp_y_curr_prev = tmp_y->BACK_FACING;
@@ -1268,6 +1311,9 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 
 			--y;
 		}
+#ifdef DEBUG
+		assert(y == this->min_y - 1);
+#endif // DEBUG
 
 		this->top_right_back = this->top_right_back->BACK_FACING;
 		this->bottom_right_back = this->bottom_right_back->BACK_FACING;
@@ -1277,6 +1323,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::inject_z_layer(int num)
 		--(this->min_z);
 		++(this->total_abs.mZ);
 	}
+
+#ifdef DEBUG
+	assert(num_box_required == index);
+#endif // DEBUG
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1381,32 +1431,28 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 {
 	if (z_lnum < min_z || z_lnum > max_z)	return disp_xy_layer(MatrixLayer::TOP);
 
-	graph_box_type* tmp_y, * temp_loc{ this->top_left_front };
+	auto* start_pos = this->top_left_front;
+	int num_jumps = std::abs(max_z - z_lnum);
+	while (num_jumps-- > 0)
+		start_pos = start_pos->BACK_FACING;
 
-	int num_jumps = std::abs( max_z - z_lnum );
-	while (num_jumps --> 0)
-	{
-		temp_loc = temp_loc->BACK_FACING;
-	}
+	graphMat::DirectionalIterator<node_dtype, Direction::PURVA, true> y_iter(start_pos);
+	graphMat::DirectionalIterator<node_dtype, Direction::DAKSHIN, true> x_iter(start_pos);
 
-	tmp_y = temp_loc;
-	while ( tmp_y )
+	while (y_iter)
 	{
-		while (temp_loc)
+		x_iter.curr_box = y_iter.curr_box;
+		while (x_iter)
 		{
 #ifndef GRAPH_MAT_NO_COORD
 			os << '(' << temp_loc->coordinate << ')' << ' ';
 #else
 			os << '(' << temp_loc->data << ')' << ' ';
-#endif // !GRAPH_MAT_NO_COORD
-
-
-			temp_loc = temp_loc->RIGHT;
+#endif
+			++x_iter;
 		}
 		os << '\n';
-
-		tmp_y = tmp_y->DOWN;
-		temp_loc = tmp_y;
+		++y_iter;
 	}
 }
 

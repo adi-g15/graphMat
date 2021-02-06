@@ -2,8 +2,11 @@
 
 #include <vector>
 #include <array>
+#include <cstdint>
 
-enum class Direction: uint8_t{
+#include "../../util/coord.hpp"
+
+enum class Direction {
 	UTTAR    = 0,	// North
 	UP       = 0,	// Up, i wanted to keep the earlier names, so declaring common words as enums with same value
 
@@ -28,34 +31,62 @@ enum class Direction: uint8_t{
 typedef std::vector<std::pair< Direction, int >> graph_position;	// For eg. {{Right,4}, {Left,1}} means 4 Right turns, then a Left turn (from origin generally, but sense may change based on implementation, direct use is discouraged)
 
 namespace util {
-	inline auto getOppositeDirection(Direction d) {
-		switch (d)
-		{
-		case Direction::UTTAR:
-			return Direction::PURVA;
-		case Direction::PURVA:
-			return Direction::UTTAR;
-		case Direction::PASHCHIM:
-			return Direction::DAKSHIN;
-		case Direction::DAKSHIN:
-			return Direction::PASHCHIM;
-		case Direction::ISHANYA:
-			return Direction::NAIRUTYA;
-		case Direction::AGNEYA:
-			return Direction::VAYAVYA;
-		case Direction::NAIRUTYA:
-			return Direction::ISHANYA;
-		case Direction::VAYAVYA:
-			return Direction::AGNEYA;
-		case Direction::URDHWA:
-			return Direction::ADHARASTHA;
-		case Direction::ADHARASTHA:
-			return Direction::URDHWA;
+	inline namespace direction3D {
+		inline auto getOppositeDirection(Direction d) {
+			switch (d)
+			{
+			case Direction::UTTAR:
+				return Direction::PURVA;
+			case Direction::PURVA:
+				return Direction::UTTAR;
+			case Direction::PASHCHIM:
+				return Direction::DAKSHIN;
+			case Direction::DAKSHIN:
+				return Direction::PASHCHIM;
+			case Direction::ISHANYA:
+				return Direction::NAIRUTYA;
+			case Direction::AGNEYA:
+				return Direction::VAYAVYA;
+			case Direction::NAIRUTYA:
+				return Direction::ISHANYA;
+			case Direction::VAYAVYA:
+				return Direction::AGNEYA;
+			case Direction::URDHWA:
+				return Direction::ADHARASTHA;
+			case Direction::ADHARASTHA:
+				return Direction::URDHWA;
+			}
 		}
-	}
 
-	inline bool areDirectionsOpposite(Direction d1, Direction d2) {
-		return d2 == getOppositeDirection(d1);
+		inline bool areDirectionsOpposite(Direction d1, Direction d2) {
+			return d2 == getOppositeDirection(d1);
+		}
+
+		inline typename util::_coord3D<int> getIncrementCoords(Direction dir) {
+			switch (dir)
+			{
+			case Direction::UTTAR:
+				return { 0,1,0 };
+			case Direction::PURVA:
+				return { 1,0,0 };
+			case Direction::PASHCHIM:
+				return { -1,0,0 };
+			case Direction::DAKSHIN:
+				return { 0,-1,0 };
+			case Direction::ISHANYA:
+				return { 1,1,0 };
+			case Direction::AGNEYA:
+				return { 1,-1,0 };
+			case Direction::NAIRUTYA:
+				return { -1,-1,0 };
+			case Direction::VAYAVYA:
+				return { 1,-1,0 };
+			case Direction::URDHWA:
+				return { 0,0,1 };
+			case Direction::ADHARASTHA:
+				return { 0,0,-1 };
+			}
+		}
 	}
 }
 

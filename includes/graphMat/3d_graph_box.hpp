@@ -5,18 +5,11 @@
 
 template<typename dtype>
 class Graph_Box_3D : Box_Base{
+public:
     typedef int32_t dimen_t;
 
-#ifndef GRAPH_MAT_NO_COORD
-    util::_coord3D<dimen_t> coordinate;
-    void set_coord(dimen_t, dimen_t, dimen_t);
-    void set_coord(util::_coord3D<dimen_t>&& new_coord);
-#endif
-
-public:
     // @learnt @self - no need to specify templates here,since compiler can deduce from return statement (if doing definitions directly inside class)
-
-    inline Graph_Box_3D* get_adj_box(Direction dir) const {
+    /*consteval*/ inline Graph_Box_3D* get_adj_box(Direction dir) const {
         switch (dir)
         {
         case Direction::UTTAR:
@@ -44,44 +37,25 @@ public:
 
     // enable_if_t<std::is_pointer_t<std::remove_reference_t<node_dtype>>>
     template<typename DType = dtype, typename = std::enable_if_t<std::is_pointer_v<std::remove_reference_t<dtype>>>>
-    Graph_Box_3D(): data(nullptr) {
-        this->RIGHT = nullptr;
-        this->LEFT = nullptr;
-        this->UP = nullptr;
-        this->DOWN = nullptr;
-        this->FRONT_FACING = nullptr;
-        this->BACK_FACING = nullptr;
-    }
+    Graph_Box_3D() noexcept:
+        data(nullptr) {}
 
-    Graph_Box_3D() {
-        this->RIGHT = nullptr;
-        this->LEFT = nullptr;
-        this->UP = nullptr;
-        this->DOWN = nullptr;
-        this->FRONT_FACING = nullptr;
-        this->BACK_FACING = nullptr;
-    }
+    Graph_Box_3D() noexcept {}
 
 #ifndef GRAPH_MAT_NO_COORD
-    Graph_Box_3D(dimen_t x, dimen_t y, dimen_t z) : coordinate(x,y,z) {
-        this->RIGHT = nullptr;
-        this->LEFT = nullptr;
-        this->UP = nullptr;
-        this->DOWN = nullptr;
-        this->FRONT_FACING = nullptr;
-        this->BACK_FACING = nullptr;
+    Graph_Box_3D(dimen_t x, dimen_t y, dimen_t z) noexcept:
+        coordinate(x,y,z),
+        {}
+
+    const auto& get_coordinate() const noexcept {
+        return this->coordinate;
     }
 #endif // !GRAPH_MAT_NO_COORD
 
     template<typename DTYPE = dtype, typename = std::enable_if_t<std::is_move_constructible_v<dtype>> >
-    Graph_Box_3D(dtype&& data) : data(data) {
-        this->RIGHT = nullptr;
-        this->LEFT = nullptr;
-        this->UP = nullptr;
-        this->DOWN = nullptr;
-        this->FRONT_FACING = nullptr;
-        this->BACK_FACING = nullptr;
-    }
+    Graph_Box_3D(dtype&& data) :
+        data(data)
+        {}
 
     Graph_Box_3D(const Graph_Box_3D&) = delete;
     Graph_Box_3D(const Graph_Box_3D&&) = delete;
@@ -102,6 +76,11 @@ public:
     Graph_Box_3D* BACK_FACING{ nullptr };
 
 protected:
+#ifndef GRAPH_MAT_NO_COORD
+    util::_coord3D<dimen_t> coordinate;
+    void set_coord(dimen_t, dimen_t, dimen_t);
+    void set_coord(util::_coord3D<dimen_t>&& new_coord);
+#endif
 
     dtype data;    /*This has been given as an extension, so that you can add more variables to the graph_box
                         though, note that, you will be able to access using this->data->your_var_name */
