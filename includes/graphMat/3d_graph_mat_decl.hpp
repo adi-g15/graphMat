@@ -83,6 +83,7 @@ protected:
 		}
 
 		int time_since_speed_updated{ 0 }; //after 10 time units, the __expansion_state.expansion_speed will be decremented/reset, so as to not unecessary keep increasing storage
+		bool speed_doubled_recently{false};
 	}__expansion_state;
 
 	// AUTO EXPANSION LOGIC START

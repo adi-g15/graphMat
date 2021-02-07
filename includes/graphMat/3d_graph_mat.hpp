@@ -428,9 +428,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::expand_n_unit(const uint8_t n)
 		this->total_abs.mX + n,
 		this->total_abs.mY + n,
 		this->total_abs.mZ + n,
-		this->__expansion_state.initializer_function.has_value() ? // when auto expanding initialiser set, we use the auto expansion function
-			RESIZE_TYPE::AUTO_EXPANSION :
-			RESIZE_TYPE::MANUAL
+		RESIZE_TYPE::AUTO_EXPANSION	// this method is ONLY meant to be used by auto expansion
 	);
 }
 
@@ -1485,10 +1483,10 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::pause_auto_expansion()
 
 	std::unique_lock<std::mutex> lock(this->m);
 	this->__expansion_state.expansion_flag.store(false);
-	while (this->__expansion_state.expansion_flag)	// to prevent infinite blocking
-	{
-		this->auto_expansion_convar.wait_for(lock, std::chrono::milliseconds(300));
-	}
+	//while (this->__expansion_state.expansion_flag)	// to prevent infinite blocking
+	//{
+		this->auto_expansion_convar.wait_for(lock, std::chrono::milliseconds(30000));
+	//}
 }
 
 template<typename node_dtype, typename dimen_t>
