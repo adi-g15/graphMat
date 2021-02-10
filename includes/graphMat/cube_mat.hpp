@@ -10,12 +10,12 @@ public:
 
 	inline auto getOrder() const noexcept { return std::get<0>( this->get_size() ); }
 
-	Cube_Matrix(): Graph_Matrix_3D() {}
+	Cube_Matrix(): Graph_Matrix_3D<node_dtype, dimen_t>() {}
 
 	Cube_Matrix(dimen_t order) : Graph_Matrix_3D<node_dtype, dimen_t>({ order, order, order }) {}
 
 	template<typename Func>
-	Cube_Matrix(dimen_t order, Func&& func): Graph_Matrix_3D({ order, order, order }, func) {}
+	Cube_Matrix(dimen_t order, Func&& func): Graph_Matrix_3D<node_dtype, dimen_t>({ order, order, order }, func) {}
 
 	~Cube_Matrix() {}
 };

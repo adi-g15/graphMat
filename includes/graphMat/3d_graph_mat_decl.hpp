@@ -183,10 +183,10 @@ public:
 	/*
 		A common mistake is to declare two function templates that differ only in their default template arguments. This is illegal because default template arguments are not part of function template's signature, and declaring two different function templates with the same signature is illegal.
 	*/
-	template<typename _Func, typename std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>>>
+	template<typename _Func, typename std::enable_if<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>>::type >
 	void for_all(_Func);	// _Func is a lambda that receives modifiable reference to the data box
 
-	template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>> >
+	template<typename _Func, typename std::enable_if<std::is_invocable_r_v<void, _Func, node_dtype&>>::type >
 	void for_all(_Func);	// _Func is a lambda that receives the 3 dimensions
 
 	graph_box_type* find(const node_dtype& value);	// uses operator== for comparison

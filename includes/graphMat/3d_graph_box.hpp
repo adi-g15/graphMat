@@ -36,7 +36,7 @@ public:
     }
 
     // enable_if_t<std::is_pointer_t<std::remove_reference_t<node_dtype>>>
-    template<typename DType = dtype, typename = std::enable_if_t<std::is_pointer_v<std::remove_reference_t<dtype>>>>
+    template<typename DType = dtype, typename std::enable_if<std::is_pointer_v<std::remove_reference_t<DType>>>::type >
     Graph_Box_3D() noexcept:
         data(nullptr) {}
 
@@ -44,7 +44,7 @@ public:
 
 #ifndef GRAPH_MAT_NO_COORD
     Graph_Box_3D(dimen_t x, dimen_t y, dimen_t z) noexcept:
-        coordinate(x,y,z),
+        coordinate(x,y,z)
         {}
 
     const auto& get_coordinate() const noexcept {

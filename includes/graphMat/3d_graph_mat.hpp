@@ -171,7 +171,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_each(graph_box_type* begin
 }
 
 template<typename node_dtype, typename dimen_t>
-template<typename _Func, typename std::enable_if_t<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>> >
+template<typename _Func, typename std::enable_if<std::is_invocable_r_v<node_dtype, _Func, dimen_t, dimen_t, dimen_t>>::type >
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_all(_Func func) {
 	graph_box_type*
 		x_temp{ this->top_left_front },
@@ -207,7 +207,7 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_all(_Func func) {
 }
 
 template<typename node_dtype, typename dimen_t>
-template<typename _Func, std::enable_if_t<std::is_invocable_r_v<void, _Func, node_dtype&>> >
+template<typename _Func, typename std::enable_if<std::is_invocable_r_v<void, _Func, node_dtype&>>::type >
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::for_all(_Func func) {
 	graph_box_type*
 		x_temp{ this->top_left_front },
@@ -1443,9 +1443,9 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 		while (x_iter)
 		{
 #ifndef GRAPH_MAT_NO_COORD
-			os << '(' << temp_loc->coordinate << ')' << ' ';
+			os << '(' << x_iter->coordinate << ')' << ' ';
 #else
-			os << '(' << temp_loc->data << ')' << ' ';
+			os << '(' << x_iter->data << ')' << ' ';
 #endif
 			++x_iter;
 		}
