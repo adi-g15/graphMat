@@ -46,7 +46,7 @@ public:
 		static int total = 0;
 		total += num;
 
-#ifdef DEBUG
+#ifdef LOG_ALLOCATION
 		std::fprintf(stderr, "[Total - %d KB] Allocating %d bytes\n", total / 1000, num);
 		std::fflush(stderr);
 #endif // DEBUG

@@ -3,6 +3,7 @@
 #include "3d_graph_mat_decl.hpp"
 #include <cassert>
 #include <stack>
+#include <bitset>
 
 // .begin() will be this default constructed using a box pointer, and .end() will be an iterator with center_box = nullptr, and directions_to_check.empty() == true
 namespace graphMat{
@@ -18,7 +19,7 @@ namespace graphMat{
 
 		pointer center_box, curr_box;
 		pointer _original_center_box;
-		int plane_count;	// either 1,2, or 3 signifying number of planes to try
+		std::bitset<2> free_planes;
 		static constexpr std::array<Direction, 8> all_directions{
 			Direction::PASHCHIM,
 			Direction::VAYAVYA,
@@ -97,13 +98,19 @@ namespace graphMat {
 		// if center_box == nullptr :	ie. no DIRECT neighbour remaining, three planes tried
 
 		// at max we will try the plane in FRONT, MIDDLE, AND BACK, plane_count keeps track ot this, else we may just keep doing this->center = this->center->BACK_FACING;, counting even non-neighbours
-		if (directions_to_check.empty() && center_box && plane_count != 0) {	// directions_to_check will only be resetted when center_box is still valid
+		if (directions_to_check.empty() && center_box && free_planes.any() ) {	// directions_to_check will only be resetted when center_box is still valid
 			for (auto dir : NeighbourIterator::all_directions)
 				directions_to_check.push(dir);
 
-			--plane_count;
-
-			this->center_box = plane_count != 0 ? this->center_box->BACK_FACING: nullptr;
+			if (free_planes[0]) {
+				this->center_box = this->_original_center_box->BACK_FACING;
+				free_planes.reset(0);
+			}
+			else
+			{
+				this->center_box = this->_original_center_box->FRONT_FACING;
+				free_planes.reset(1);
+			}
 			this->curr_box = this->center_box;
 		}
 		else {
@@ -116,7 +123,7 @@ namespace graphMat {
 			}
 
 			if (curr_box == nullptr) {	// directions_to_check has become empty(), this call recursive call causes for the center_box to be changed to another plane, and then we start afresh trying it's neighbours
-				if (plane_count > 0)	this->operator++();
+				if (free_planes.any())	this->operator++();
 				else this->center_box = nullptr;	// we don't have any more planes to check, and i don't want it to enter the if condition, even then center_box will become null and stack will have content
 			}
 		}
@@ -173,14 +180,11 @@ namespace graphMat {
 	}
 
 	template<typename node_dtype, bool IS_CONST>
-	inline NeighbourIterator<node_dtype, IS_CONST>::NeighbourIterator(pointer begin_node) noexcept : center_box(begin_node), curr_box(begin_node), _original_center_box(center_box), plane_count(1)
+	inline NeighbourIterator<node_dtype, IS_CONST>::NeighbourIterator(pointer begin_node) noexcept : center_box(begin_node), curr_box(begin_node), _original_center_box(center_box)
 	{
-		if (center_box->BACK_FACING != nullptr)	++plane_count;
+		if (center_box->BACK_FACING != nullptr)	free_planes.set(0);
 
-		if (center_box->FRONT_FACING != nullptr) {
-			center_box = center_box->FRONT_FACING;
-			++plane_count;
-		}
+		if (center_box->FRONT_FACING != nullptr) free_planes.set(1);
 
 		for (auto dir : NeighbourIterator::all_directions)
 			directions_to_check.push(dir);
