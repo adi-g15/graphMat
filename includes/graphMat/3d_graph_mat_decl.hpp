@@ -69,9 +69,9 @@ protected:
 		float curr_expansion_speed{ Matrix_Base::init_expansion_speed };
 		float increase_units{0.0};	// units to increase in each direction, in call to expand_once()
 		const int milliseconds_in_unit_time{ 1000 };	// by default consider it 1 second
-		//float last_increase_units;	// @note @me - expansion speed itself behaves as this
 
 		std::atomic_bool expansion_flag{ false };
+		bool is_actively_expanding{ false };
 
 		std::optional< Init_Func > initializer_function;
 
@@ -127,11 +127,9 @@ protected:
 	//template < typename _Cond, typename _Func >	// though this is an idea, but doesn't seem of much help
 	//void for_each(_Cond condition_function_takes_data_returns_direction_to_move, _Func);	// func will receive only one param, ie. the node_dtype data
 
-	std::mutex m;
-	std::condition_variable auto_expansion_convar;	// convar to signal the pause_auto_expansion() when auto() expansion actually stops
-	std::atomic_bool is_auto_paused;	// extra bool to tell whether
-
 public:
+
+	std::mutex m;
 	/**
 	* @note - It is `time based expansion`, that is the expansion rate decreases over time, and gains normal speed back up too, then again that
 	*		  For more customizarion, you can overload these, for a similar example using `unused space` in the matrix to decide whether to grow,

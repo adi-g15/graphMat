@@ -1462,17 +1462,19 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::disp_xy_layer(int z_lnum, std:
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::auto_expansion()
 {
+	this->__expansion_state.expansion_flag = true;
+	this->__expansion_state.is_actively_expanding = true;
+
 	while (this->__expansion_state.expansion_flag)
 	{
-		//std::clog << "Expanding...\n";
 		this->expand_once();
 
 		// sleep for 1 unit time
 		std::this_thread::sleep_for(std::chrono::milliseconds(this->__expansion_state.milliseconds_in_unit_time));
 	}
 
-	this->auto_expansion_convar.notify_one();
-	//std::clog << "\nStopped AutoExpansion" << std::endl;
+	this->__expansion_state.is_actively_expanding = false;
+	//this->auto_expansion_convar.notify_one();
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1481,23 +1483,20 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::pause_auto_expansion()
 	// return if not expanding, or "shouldn't" be auto expanding now
 	if (!this->__expansion_state.expansion_flag)	return;
 
-	std::unique_lock<std::mutex> lock(this->m);
 	this->__expansion_state.expansion_flag.store(false);
+	while (this->__expansion_state.is_actively_expanding) {}	// block till auto_expansion doesn't signal that it's done
+
 	//while (this->__expansion_state.expansion_flag)	// to prevent infinite blocking
-	//{
-		this->auto_expansion_convar.wait_for(lock, std::chrono::milliseconds(30000));
-	//}
+	//	this->auto_expansion_convar.wait_for(lock, std::chrono::milliseconds(30000));
 }
 
 template<typename node_dtype, typename dimen_t>
 inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion()
 {
-	if (this->__expansion_state.expansion_flag.load()) return;    // if already expanding, then return
+	if (this->__expansion_state.expansion_flag) return;    // if already expanding, then return
 
 	this->__expansion_state.reset_initializer();
-	this->__expansion_state.expansion_flag.store(true);
 
-	// we `start` it again on another thread (with previous expansion metadata still in __expansion_state object)
 	std::thread( &Graph_Matrix_3D::auto_expansion, this ).detach();
 }
 
@@ -1519,7 +1518,6 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion(Callable
 	if (this->__expansion_state.expansion_flag.load()) return;    // if already expanding, then return
 
 	this->__expansion_state.set_initializer(inititaliser_func);
-	this->__expansion_state.expansion_flag.store(true);
 
 	// we `start` it again on another thread (with previous expansion metadata still in __expansion_state object)
 	std::thread(&Graph_Matrix_3D::auto_expansion, this).detach();

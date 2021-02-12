@@ -85,6 +85,8 @@ namespace util {
 				return { 0,0,1 };
 			case Direction::ADHARASTHA:
 				return { 0,0,-1 };
+			default:
+				return { 0,0,0 };
 			}
 		}
 	}

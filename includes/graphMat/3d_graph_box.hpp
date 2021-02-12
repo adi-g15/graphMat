@@ -32,6 +32,8 @@ public:
             return this->FRONT_FACING;
         case Direction::ADHARASTHA:
             return this->BACK_FACING;
+        default:
+            return nullptr;
         }
     }
 
