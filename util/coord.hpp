@@ -49,6 +49,7 @@ namespace util
         }
 
         friend std::ostream& operator<<(std::ostream& os, const _coord3D<dimen_t>& coord){
+            os << '(';
             if(coord.mX >= 0){
                 os << ' ';
                 if(coord.mX < 10)
@@ -72,7 +73,7 @@ namespace util
             }
             else if (coord.mZ > -10)
                 os << ' ';
-            os << coord.mZ;
+            os << coord.mZ << ')';
             return os;
         }
 

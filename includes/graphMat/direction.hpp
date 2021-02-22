@@ -101,13 +101,14 @@ namespace statics{
 struct directionalPath {	// @note - DONT provide front() or back() methods here ! It will be confusing, since WHILE construction, directions added to back, then when moving accessed in reverse order
 	std::vector<Direction> data;
 
+	// we are storing in reverse format, only because our finder algorithms return the found path FROM destination to start
 	const auto begin() const { return data.rbegin(); }
 	const auto end() const { return data.rend(); }
 
 	auto begin() { return data.rbegin(); }
 	auto end() { return data.rend(); }
 
-	//auto size() const { return data.size(); }
+	auto size() const { return data.size(); }
 	auto empty() const { return data.empty(); }
 	auto reserve(int sz) { data.reserve(sz); }
 
