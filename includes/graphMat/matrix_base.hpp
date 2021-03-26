@@ -15,9 +15,9 @@
 class Matrix_Base {
 
 protected:
-	const int _dimension;
+	const int _dimension;	// 2,3,...
 
-	int getDimensionsOfMatrix() { return this->_dimension; }
+	int _get_matrix_dimension() { return this->_dimension; }
 
 	static constexpr float init_expansion_speed{ 1 }; // @future - allow negative growths too
 	void auto_expansion();
