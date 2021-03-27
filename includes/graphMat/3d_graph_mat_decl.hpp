@@ -151,8 +151,10 @@ public:
 	graph_box_type* operator[](const coord_type&);
 	const graph_box_type* operator[](const coord_type&) const;
 
-	graph_box_type* operator[](const graph_position& pos);
-	const graph_box_type* operator[](const graph_position& pos) const;
+	template< typename GraphPosition >	// either of `graph_position` or `old_graphMat::graph_position`
+	graph_box_type* operator[](const GraphPosition& pos);
+	template< typename GraphPosition >
+	const graph_box_type* operator[](const GraphPosition& pos) const;
 
 	// these are metadata for resize() function, and it's variants
 		enum class RESIZE_TYPE {

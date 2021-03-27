@@ -1527,21 +1527,21 @@ template<typename node_dtype, typename dimen_t>
 inline graph_box_type* _reach_from_to(const coord_type& from, const coord_type& to) {
 	graph_position g_path;
 	if(to.mX < from.mX) {
-		g_path.push_back({ Direction::PASCHIM, from.mX - to.mX });
+		g_path[0] = { Direction::PASCHIM, from.mX - to.mX };
 	} else {
-		g_path.push_back({ Direction::PURVA, to.mX   - from.mX });
+		g_path[0] = { Direction::PURVA, to.mX - from.mX };
 	}
 
 	if(to.mY < from.mY) {
-		g_path.push_back({ Direction::DAKSHIN, from.mY - to.mY });
+		g_path[1] = { Direction::DAKSHIN, from.mY - to.mY };
 	} else {
-		g_path.push_back({ Direction::UTTAR, to.mY   - from.mY });
+		g_path[1] = { Direction::UTTAR, to.mY - from.mY };
 	}
 
 	if(to.mZ < from.mZ) {
-		g_path.push_back({ Direction::ADHARASTHA, from.mZ - to.mZ });
+		g_path[2] = { Direction::ADHARASTHA, from.mZ - to.mZ };
 	} else {
-		g_path.push_back({ Direction::URDHWA, to.mZ   - from.mZ });
+		g_path[2] = { Direction::URDHWA, to.mZ - from.mZ };
 	}
 
 	return this->operator[](std::move(g_path));
@@ -1560,27 +1560,27 @@ inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[
 	// we start from origin, ie. {0,0,0}
 	graph_position g_path;
 	if (pos.mX < 0) {
-		g_path.push_back({ Direction::PASHCHIM, -pos.mX });
+		g_path[0] = { Direction::PASHCHIM, -pos.mX };
 	}
 	else {
-		g_path.push_back({ Direction::PURVA, pos.mX });
+		g_path[0] = { Direction::PURVA, pos.mX };
 	}
 
 	if (pos.mY < 0) {
-		g_path.push_back({ Direction::DAKSHIN, -pos.mY });
+		g_path[1] = { Direction::DAKSHIN, -pos.mY };
 	}
 	else {
-		g_path.push_back({ Direction::UTTAR, pos.mY });
+		g_path[1] = { Direction::UTTAR, pos.mY };
 	}
 
 	if (pos.mZ < 0) {
-		g_path.push_back({ Direction::ADHARASTHA, -pos.mZ });
+		g_path[2] = { Direction::ADHARASTHA, -pos.mZ };
 	}
 	else {
-		g_path.push_back({ Direction::URDHWA, pos.mZ });
+		g_path[2] = { Direction::URDHWA, pos.mZ };
 	}
 
-	return this->operator[](std::move(g_path));
+	return this->operator[](g_path);
 }
 
 template<typename node_dtype, typename dimen_t>
@@ -1592,9 +1592,15 @@ inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::ope
 }
 
 template<typename node_dtype, typename dimen_t>
-inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const graph_position& pos)
+template< typename GraphPosition >
+inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const GraphPosition& pos)
 {
 	// @note to viewer -> You can express your view on whether we should prefer simple [x][y] for position or the graph_position typedefed in graph_box.hpp
+
+	static_assert(std::is_same<graph_position, std::remove_reference_t<GraphPosition> > ||
+				  std::is_same<old_graphMat::graph_position, std::remove_reference_t<GraphPosition> >,
+				  "Only one of graph_position or old_graphMat::graph_position is supported");
+
 
 	Graph_Box_3D<node_dtype>* tmp{ &origin };
 	for (auto& i : pos)
@@ -1609,7 +1615,8 @@ inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[
 }
 
 template<typename node_dtype, typename dimen_t>
-inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const graph_position& pos) const
+template< typename GraphPosition >
+inline const Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const GraphPosition& pos) const
 {
 
 	/*Suggested in Effective C++, instead of writing the same code in both the const and non-const duplicate member functions*/

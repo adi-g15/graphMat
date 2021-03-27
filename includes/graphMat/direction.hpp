@@ -27,8 +27,24 @@ enum class Direction {
 	ADHARASTHA = 9	// (Patal) Downwards
 };
 
-// equivalent to {x,y} in a matrix, this typedef defines the position of a box/point, in an intuitive way (to me atleast :D), and feels more closer to the implementation than to give indices, since here we have directions mostly
-typedef std::vector<std::pair< Direction, int >> graph_position;	// For eg. {{Right,4}, {Left,1}} means 4 Right turns, then a Left turn (from origin generally, but sense may change based on implementation, direct use is discouraged)
+/*
+	@brief `graph_position` represents a coordinate, as "number of turns to take", not very optimal,
+			but according to me (@adi-g15) it aligns with the idea of this, where we don't actually
+			represent everything using coordinates (we do for entities for performance gains), and
+			each point is like in our universe, you can't assign a particular coordinate to something
+			it will only be relative to something, if it seems weird I am open for further discussion :D
+
+	@note - BREAKING CHANGE, DEFAULTS CHANGED, A SMALL CHANGE MAINTAINS BACKWARD COMPATIBILITY
+			Earlier this was allowed: {{RIGHT, 3}, {LEFT, 3}}...
+			This is no longer allowed (or for that, use old_graphMat::graph_position, which is totally supported)
+
+			Now, it is a static array, saving A LOT of dynamic allocations each time a node is accessed
+*/
+using graph_position = std::array<std::pair< Direction, int >, 3>;
+namespace old_graphMat {
+	// equivalent to {x,y} in a matrix, this typedef defines the position of a box/point, in an intuitive way (to me atleast :D), and feels more closer to the implementation than to give indices, since here we have directions mostly
+	using graph_position = std::vector<std::pair< Direction, int >>;	// For eg. {{Right,4}, {Left,1}} means 4 Right turns, then a Left turn (from origin generally, but sense may change based on implementation, direct use is discouraged)	
+}
 
 namespace util {
 	inline namespace direction3D {
