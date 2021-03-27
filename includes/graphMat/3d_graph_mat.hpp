@@ -1524,6 +1524,37 @@ inline void Graph_Matrix_3D<node_dtype, dimen_t>::resume_auto_expansion(Callable
 }
 
 template<typename node_dtype, typename dimen_t>
+inline graph_box_type* _reach_from_to(const coord_type& from, const coord_type& to) {
+	graph_position g_path;
+	if(to.mX < from.mX) {
+		g_path.push_back({ Direction::PASCHIM, from.mX - to.mX });
+	} else {
+		g_path.push_back({ Direction::PURVA, to.mX   - from.mX });
+	}
+
+	if(to.mY < from.mY) {
+		g_path.push_back({ Direction::DAKSHIN, from.mY - to.mY });
+	} else {
+		g_path.push_back({ Direction::UTTAR, to.mY   - from.mY });
+	}
+
+	if(to.mZ < from.mZ) {
+		g_path.push_back({ Direction::ADHARASTHA, from.mZ - to.mZ });
+	} else {
+		g_path.push_back({ Direction::URDHWA, to.mZ   - from.mZ });
+	}
+
+	return this->operator[](std::move(g_path));
+}
+
+template<typename node_dtype, typename dimen_t>
+inline const graph_box_type* _reach_from_to(const coord_type& from, const coord_type& to) const {
+
+	return  const_cast<Graph_Matrix_3D<node_dtype, dimen_t>*>(this)
+			->_reach_from_to(from, to);		// access non-const `this` methods
+}
+
+template<typename node_dtype, typename dimen_t>
 inline Graph_Box_3D<node_dtype>* Graph_Matrix_3D<node_dtype, dimen_t>::operator[](const coord_type& pos)
 {
 	// we start from origin, ie. {0,0,0}

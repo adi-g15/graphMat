@@ -121,6 +121,9 @@ protected:
 	void pop_zplus_layer();
 	void pop_zminus_layer();
 
+	graph_box_type* _reach_from_to(const coord_type& from, const coord_type& to);
+	const graph_box_type* _reach_from_to(const coord_type& from, const coord_type& to) const;
+
 	void disp_xy_layer(MatrixLayer ltype = MatrixLayer::TOP) const noexcept;
 	void disp_xy_layer(int lnum, std::ostream& os = std::cout) const noexcept;
 
@@ -147,6 +150,7 @@ public:
 
 	graph_box_type* operator[](const coord_type&);
 	const graph_box_type* operator[](const coord_type&) const;
+
 	graph_box_type* operator[](const graph_position& pos);
 	const graph_box_type* operator[](const graph_position& pos) const;
 
