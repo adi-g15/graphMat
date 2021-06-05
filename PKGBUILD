@@ -1,5 +1,5 @@
 # Maintainer: Aditya Gupta <ag15035 at gmail dot com>
-pkgname=graphMat-git
+pkgname=graphmat-git
 pkgver=1
 pkgrel=1
 arch=(x86_64)
