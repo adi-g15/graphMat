@@ -19,6 +19,23 @@ Then, i had read somewhere, _A matrix is inherently a graph, each node connected
 
 So, now the point of it, So i created a matrix data structure, based on a graph, that completes the requirements for `point 1 above`, though it doesn't have constant time lookups like std::vector, but for my case, i chose to create it like this.
 
+# Basic Usage
+
+```cpp
+...
+#include <graphMat/graph_mat.hpp>
+
+int main(){
+    Graph_Matrix_3D<int> matrix;            // primitive type
+    Graph_Matrix_3D<std::string> smat;      // objects
+    Graph_Matrix_3D<DataClass> dmat({5, 5, 5}); // initial size
+    Graph_Matrix_3D<DataClass> dmat({5, 5, 5}, [n=1](DataClass& data, int x, int y, int z) mutable {    // size with INITIALISIZER function (other variants exist too)
+        data.my_data_member = 100*x + 10*y + z;
+        std::cout << "Adding box: " << n++ << '\n';
+    });
+}
+```
+
 # Documentation
 Documentation is being maintained in `wiki` section of this repo.
 
