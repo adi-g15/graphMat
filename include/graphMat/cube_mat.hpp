@@ -1,4 +1,4 @@
-#include "3d_graph_mat.hpp"
+#include "graph_mat.hpp"
 
 template < typename node_dtype, typename dimen_t = int32_t >
 class Cube_Matrix : public Graph_Matrix_3D<node_dtype, dimen_t>

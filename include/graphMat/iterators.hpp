@@ -1,6 +1,6 @@
 #pragma once
 
-#include "3d_graph_mat_decl.hpp"
+#include "graph_mat_decl.hpp"
 #include <cassert>
 #include <stack>
 #include <bitset>

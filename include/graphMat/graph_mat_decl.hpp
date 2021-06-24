@@ -9,7 +9,7 @@
 #include <future>	// for std::promise
 
 #include "matrix_base.hpp"
-#include "3d_graph_box.hpp"
+#include "graph_box.hpp"
 #include "direction.hpp"
 
 /*

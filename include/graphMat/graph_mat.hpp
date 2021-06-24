@@ -1,6 +1,6 @@
 #pragma once
 
-#include "3d_graph_mat_decl.hpp"
+#include "graph_mat_decl.hpp"
 #include "iterators.hpp"
 #include <type_traits>	// for std::is_invocable
 #include <thread>
