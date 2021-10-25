@@ -19,8 +19,8 @@
 // #include <concepts>
 
 #include "../../matrix_base.hpp"
-#include "../../util/coord.hpp"
 #include "graph_box.hpp"
+#include <util/coord.hpp>
 
     // @limitation (wrt vector<vector>) - Currently you can't get back the nth row, say mat[4], isn't valid, though can be implemented by simply returning, mat[4][0] which will logically be a linked list
 
